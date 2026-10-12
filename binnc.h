@@ -146,15 +146,23 @@ void binn_destroy(struct binn *binn);
 
 /// @brief Returns `true` if a given `val` represents a `struct binn` object.
 ///
-/// @param val Value to inspect.
+/// @param value Value to inspect.
 /// @return `true` if `val` represents a `struct binn` object.
-bool binn_is_struct(void *val);
+bool binn_is_struct(void *value);
 
 /// @brief Returns `true` if a given `val` represents a serialized binn buffer.
 ///
-/// @param val Value to inspect.
+/// @param value Value to inspect.
 /// @return `true` if `val` represents a serialized binn buffer.
-bool binn_is_buff(void *val);
+bool binn_is_serialized(void *value);
 
+/// Tests if value is eiether a binn structure or serialized binn value.
+bool binn_is_any(void *value);
+
+/// @brief Calls `consumer` with serialized binn buffer.
+///
+/// @note `consumer` is called at most once.
+/// @returns False is `value` is not a binn struct or serialized binn buffer
+bool binn_serialize(void *value, void (*consumer)(uint8_t *data, size_t len, void *op), void *op);
 
 #endif
