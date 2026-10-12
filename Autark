@@ -1,0 +1,255 @@
+check {
+  system.sh
+  changelog_gnu.sh { S{Changelog} }
+}
+
+meta {
+  name { binn-c }
+
+  version { ${CHANGELOG_VERSION} }
+  version_major { ${CHANGELOG_VERSION_MAJOR} }
+  version_minor { ${CHANGELOG_VERSION_MINOR} }
+  version_patch { ${CHANGELOG_VERSION_PATCH} }
+
+  description { Lighweight C implementation of BINN data serialization format. }
+  website { https//github.com/Softmotions/binn-c }
+  vendor { Softmotions (https://softmotions.com) }
+  maintainer { Anton Adamansky <adamansky@gmail.com> }
+  license { MIT }
+}
+
+option { BINNC_BUILD_SHARED_LIBC  Build shared library }
+option { BINNC_BUILD_TESTS        Build test cases }
+option { BINNC_RUN_TESTS          Build and run test cases }
+option { ENABLE_ASAN              Turn on address sanitizer }
+option { ENABLE_UBSAN             Turn on UB sanitizer }
+option { ENABLE_DEBINFO           Generate debuginfo even in release mode }
+
+set {
+  META_VERSION
+  @{ git rev-parse --short HEAD }
+}
+
+if { ${BINNC_RUN_TESTS} 
+  set {
+    BINNC_BUILD_TESTS 1
+  }
+}
+
+if { eq { ${BUILD_TYPE} Release }
+  if { defined { SYSTEM_DARWIN }
+    set {
+      STRIP_CMD strip -S
+    }
+  } else {
+    set {
+      STRIP_CMD strip --strip-debug
+    }
+  }
+}
+
+set {
+  SANITIZER_FLAGS
+  if { ${ENABLE_ASAN}
+    -fsanitize=address
+    -fno-omit-frame-pointer
+  }
+  if { ${ENABLE_UBSAN}
+    -fsanitize=undefined
+    -fno-omit-frame-pointer
+  }
+}
+
+set {
+  CFLAGS
+  -std=gnu11
+  -pedantic
+  -fsigned-char
+  -Wall
+  -Wextra
+  -Wfatal-errors
+  -Wno-implicit-fallthrough
+  -Wno-missing-braces
+  -Wno-missing-field-initializers
+  -Wno-sign-compare
+  -Wno-unknown-pragmas
+  -Wno-unused-function
+  -Wno-unused-parameter
+  -fPIC
+  ..${SANITIZER_FLAGS}
+  if { prefix { ${BUILD_TYPE} Debug }
+    -O0
+    -ggdb
+    -Werror
+    -fno-omit-frame-pointer
+    -Wno-unused-variable
+    -DDEBUG -D_DEBUG -UNDEBUG
+  } else {
+    if { ${ENABLE_DEBINFO}
+      -O2
+      -ggdb
+      -fno-omit-frame-pointer
+    } else {
+      -O3
+    }
+    -DNDEBUG
+    -DBINNC_RELEASE
+  }
+  if { defined { SYSTEM_BIGENDIAN }
+    -DIW_BIGENDIAN
+  }
+  if { defined { SYSTEM_BITNESS_64 }
+    -DIW_64
+  }
+  if { defined { SYSTEM_BITNESS_32 }
+    -DIW_32
+  }
+  if { defined { SYSTEM_LINUX }
+    -D_XOPEN_SOURCE=700
+  }
+  if { defined { SYSTEM_DARWIN }
+    -D_DARWIN_C_SOURCE
+  }
+  -D_DEFAULT_SOURCE
+  -D_LARGEFILE_SOURCE
+  -D_FILE_OFFSET_BITS=64
+
+  if { !defined { BINNC_BUILD_SHARED_LIBS }
+    -DIW_NODLL
+  } else {
+    -DIW_API_EXPORTS
+  }
+  if { ${BINNC_BUILD_TESTS}
+    -DBINNC_TESTS=1
+  }
+}
+
+set {
+  LDFLAGS
+  ..${SANITIZER_FLAGS}
+  ..${LDFLAGS}
+}
+
+set {
+  LDFLAGS_TEST
+  ${LIBBINNC_A}
+  ..${LDFLAGS}
+}
+
+set {
+  CFLAGS_TESTS
+  -DIW_STATIC
+  ..${CFLAGS}
+}
+
+set {
+  SOURCES
+  binnc.c
+}
+
+set {
+  PUB_HDRS
+  binnc.h
+}
+
+configure {
+  binnc_cfg.h.in
+}
+
+cc {
+  ${SOURCES}
+  ${CFLAGS}
+  ${CC}
+  consumes {
+    binnc_cfg.h
+  }
+}
+
+set {
+  LIBBINNC_A
+  CC { libbinnc.a }
+}
+
+run {
+  exec { ${AR} rcs ${LIBBINNC_A} ${CC_OBJS} }
+  consumes {
+    ${CC_OBJS}
+  }
+  produces {
+    ${LIBBINNC_A}
+  }
+}
+
+install { ${INSTALL_LIB_DIR} ${LIBBINNC_A} }
+
+if { ${BINNC_BUILD_SHARED_LIBS}
+  if {!defined {SYSTEM_DARWIN}
+    set {
+      LIBBINC_SO_BASE
+      libbinc.so
+    }
+    set {
+      LIBBINC_SO_BIN
+      ^{${LIBBINC_SO_BASE} . ${META_VERSION}}
+    }
+    set {
+      LIBBINC_SO_NAME
+      ^{${LIBBINC_SO_BASE} . ${META_VERSION_MAJOR}}
+    }
+    run {
+      exec { ${CC} -shared -o ${LIBBINC_SO_BIN} ${CC_OBJS} ${LDFLAGS} }
+      if { ${STRIP_CMD}
+        exec { ${STRIP_CMD} ${LIBBINC_SO_BIN} }
+      }
+      consumes {
+        ${CC_OBJS}
+      }
+      produces {
+        ${LIBBINC_SO_BIN}
+      }
+    }
+  } else {
+    set {
+      LIBBINC_SO_BASE
+      libbinc.dylib
+    }
+    set {
+      LIBBINC_SO_BIN
+      ^{libbinc. ${META_VERSION} .dylib}
+    }
+    set {
+      LIBBINC_SO_NAME
+      ^{libbinc. ${META_VERSION_MAJOR} .dylib}
+    }
+    run {
+      exec { ${CC} -dynamiclib
+        -install_name ^{@rpath/ ${LIBBINC_SO_BIN}}
+        -compatibility_version ${META_VERSION_MAJOR}
+        -current_version ${META_VERSION}
+        -o ${LIBBINC_SO_BIN}
+        ${CC_OBJS}
+        ${LDFLAGS}
+      }
+      if { ${STRIP_CMD}
+        exec { ${STRIP_CMD} ${LIBBINC_SO_BIN} }
+      }
+      consumes {
+        ${CC_OBJS}
+      }
+      produces {
+        ${LIBBINC_SO_BIN}
+      }
+    }
+  }
+  run {
+    exec { ln -sf ${LIBBINC_SO_BIN} ${LIBBINC_SO_NAME} }
+    exec { ln -sf ${LIBBINC_SO_BIN} ${LIBBINC_SO_BASE} }
+    consumes {
+      ${LIBBINC_SO_BIN}
+    }
+  }
+  install { ${INSTALL_LIB_DIR} ${LIBBINC_SO_BIN} ${LIBBINC_SO_NAME} ${LIBBINC_SO_BASE} }
+}
+
+
+install { ${INSTALL_INCLUDE_DIR} ${PUB_HDRS} }

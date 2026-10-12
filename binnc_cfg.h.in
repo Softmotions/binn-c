@@ -1,0 +1,14 @@
+#pragma once
+#ifndef BINNC_CFG_H
+#define BINNC_CFG_H
+
+#if !defined(IW_32) && !defined(IW_64)
+#error Unknown CPU bits
+#endif
+
+#define BINNC_VERSION       "@META_VERSION@"
+#define BINNC_VERSION_MAJOR @META_VERSION_MAJOR@
+#define BINNC_VERSION_MINOR @META_VERSION_MINOR@
+#define BINNC_VERSION_PATCH @META_VERSION_PATCH@
+
+#endif
