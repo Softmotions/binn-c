@@ -220,9 +220,9 @@ bool binn_iter_init(void *binn, struct binn_iter *iter);
 
 /// @brief Advances a given iterator to the next child.
 ///
-/// @param next Iterator to advance.
+/// @param iter Iterator to advance.
 /// @return `true` if the iterator was moved to the next child, `false` otherwise.
-bool binn_iter_next(struct binn_iter *next);
+bool binn_iter_next(struct binn_iter *iter);
 
 /// @brief Releases resources associated with a given iterator.
 ///
