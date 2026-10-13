@@ -18,9 +18,12 @@ typedef uint16_t binn_type_t;
 /// Control flags affecting the behavior of binn operations. See the `BINN_FLG_*` constants.
 typedef uint16_t binn_flags_t;
 
-/// Signature number used to distinguish a binn structure from a serialized binn buffer.
-/// Intended to be stored in `struct binn_create_spec::magic`.
+/// Magic number used to distinguish a binn structure from a serialized binn buffer.
+/// Expected to be stored in `struct binn_create_spec::magic`.
 #define BINN_MAJIC_NUMBER 0x1F22B11F
+
+/// Max length of binn object key.
+#define BINN_KEY_MAXLEN 255
 
 /// Binn value type identifiers.
 ///
@@ -103,15 +106,15 @@ struct binn* binn_create_value(struct binn *holder, const struct binn_create_spe
 /// and `out_casted` is set accordingly.
 ///
 /// @note If `out_casted` is set to `false`, the caller must dispose of the result with `binn_destroy()`.
-/// @note A provided serialized binn `value` is not copied. And caller is reponsible to release resources allocated for
-/// `value` when `binn` is destroyed.
+/// @note A provided serialized binn `value` is not copied. The caller is responsible for releasing the
+/// resources allocated for `value` when the binn object is destroyed.
 ///
 /// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
 /// @param value Serialized binn buffer, or a pointer to a `struct binn`.
 /// @param out_casted Set to `true` if `value` was cast to `struct binn*` rather than wrapped.
 /// @return Pointer to the resulting binn value, or zero on error.
 ///
-/// @see struct binn::on_destroy
+/// @see binn::on_destroy
 struct binn* binn_from(struct binn *holder, void *value, bool *out_casted);
 
 /// @brief Creates a new binn value by copying the given serialized binn `value` or binn structure.
@@ -144,25 +147,86 @@ struct binn* binn_create_object(struct binn *holder);
 /// @param binn Binn value to destroy.
 void binn_destroy(struct binn *binn);
 
-/// @brief Returns `true` if a given `val` represents a `struct binn` object.
+/// @brief Returns `true` if a given `value` represents a `struct binn` object.
 ///
 /// @param value Value to inspect.
-/// @return `true` if `val` represents a `struct binn` object.
-bool binn_is_struct(void *value);
+/// @return `true` if `value` represents a `struct binn` object.
+bool binn_is_struct_instance(void *value);
 
-/// @brief Returns `true` if a given `val` represents a serialized binn buffer.
+/// @brief Returns `true` if a given `value` represents a serialized binn buffer.
 ///
 /// @param value Value to inspect.
-/// @return `true` if `val` represents a serialized binn buffer.
-bool binn_is_serialized(void *value);
+/// @return `true` if `value` represents a serialized binn buffer.
+bool binn_is_serialized_buffer(void *value);
 
-/// Tests if value is eiether a binn structure or serialized binn value.
+/// @brief Returns `true` if a given `value` is either a binn structure or a serialized binn value.
+///
+/// @param value Value to inspect.
+/// @return `true` if `value` is a binn structure or a serialized binn value.
 bool binn_is_any(void *value);
 
-/// @brief Calls `consumer` with serialized binn buffer.
+/// @brief Serializes a given binn `value` and feeds the result to the `consumer` callback.
 ///
-/// @note `consumer` is called at most once.
-/// @returns False is `value` is not a binn struct or serialized binn buffer
+/// The `consumer` may be called many times as the serialized data is produced. The final call signals
+/// the end of the stream and is made with zero `data` and zero `len`.
+///
+/// @param value A pointer to a binn struct or a serialized binn value.
+/// @param consumer Callback invoked with chunks of the serialized binn buffer.
+/// @param op Optional user data passed to the `consumer` callback.
+/// @return `false` on error.
 bool binn_serialize(void *value, void (*consumer)(uint8_t *data, size_t len, void *op), void *op);
+
+/// @brief Adds a `value` associated with the given string `key` to a `BINN_TYPE_OBJECT` binn object.
+///
+/// @param binn Target binn object.
+/// @param key Key to associate the value with. Its length must not exceed `BINN_KEY_MAXLEN`.
+/// @param value A pointer to a binn struct or a serialized binn value.
+/// @return `false` on error.
+bool binn_add_keyed(struct binn *binn, const char *key, void *value);
+
+/// @brief Adds a `value` associated with the given numeric `idx` key to a `BINN_TYPE_MAP` binn object.
+///
+/// @param binn Target binn object.
+/// @param idx Numeric key to associate the value with.
+/// @param value A pointer to a binn struct or a serialized binn value.
+/// @return `false` on error.
+bool binn_add_indexed(struct binn *binn, int32_t idx, void *value);
+
+/// @brief Adds a `value` to a `BINN_TYPE_LIST` binn object.
+///
+/// @param binn Target binn object.
+/// @param value A pointer to a binn struct or a serialized binn value.
+/// @return `false` on error.
+bool binn_add(struct binn *binn, void *value);
+
+/// Binn iterator over the children of a container binn value.
+struct binn_iter {
+  struct binn binn;                  ///< Current binn object holder. Use only when `exists` is `true`.
+  char     key[BINN_KEY_MAXLEN + 1]; ///< String key of the current binn object.
+  uint32_t idx;                      ///< Indexed key of the current binn object.
+  void    *next;                     ///< Pointer to the next child binn object.
+  bool     exists;                   ///< `true` if the iterator points to a real binn object.
+};
+
+/// @brief Initializes an iterator over the children of the given binn object.
+///
+/// At this stage the iterator does not point to any of the binn's children and requires a
+/// `binn_iter_next()` call.
+///
+/// @param binn Binn object to iterate over: a pointer to a binn struct or a serialized binn value.
+/// @param iter Iterator to initialize.
+/// @return `false` on error.
+bool binn_iter_init(void *binn, struct binn_iter *iter);
+
+/// @brief Advances a given iterator to the next child.
+///
+/// @param next Iterator to advance.
+/// @return `true` if the iterator was moved to the next child, `false` otherwise.
+bool binn_iter_next(struct binn_iter *next);
+
+/// @brief Releases resources associated with a given iterator.
+///
+/// @param iter Iterator to close.
+void binn_iter_close(struct binn_iter *iter);
 
 #endif
