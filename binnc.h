@@ -70,7 +70,7 @@ struct binn {
   size_t      size;                     ///< Size of the serialized binn object in bytes.
                                         ///  Note: the binn object may not actually be in serialized (finalized) form.
   uint64_t nval;                        ///< Data value for numeric types. Up to eight bytes.
-  uint8_t *ptr;                         ///< Pointer to the binn buffer.
+  uint8_t *bval;                        ///< Pointer to non numeric binn data buffer.
   void    *user_data;                   ///< Optional user data associated with the binn object.
   void     (*on_destroy)(struct binn*); ///< Optional callback invoked when the binn object is destroyed.
 };
