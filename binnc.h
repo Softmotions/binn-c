@@ -15,15 +15,19 @@
 /// Binn value type identifier. See the `BINN_TYPE_*` constants.
 typedef uint16_t binn_type_t;
 
-/// Control flags affecting the behavior of binn operations. See the `BINN_FLG_*` constants.
+/// Control flags affecting the behavior of binn struct operations.
+/// See the `BINN_FLG_*` constants.
 typedef uint16_t binn_flags_t;
 
-/// Magic number used to distinguish a binn structure from a serialized binn buffer.
-/// Expected to be stored in `struct binn_create_spec::magic`.
+/// Magic number used to distinguish a binn struct from a serialized binn buffer.
+/// Expected to be stored in `binn::magic`.
 #define BINN_MAJIC_NUMBER 0x1F22B11F
 
 /// Max length of binn object key.
 #define BINN_KEY_MAXLEN 255
+
+/// Max nesting levels of container binn objects.
+#define BINN_MAX_NESTING_LEVELS 255
 
 /// Binn value type identifiers.
 ///
@@ -54,34 +58,75 @@ typedef uint16_t binn_flags_t;
 #define BINN_TYPE_OBJECT   0xE2 ///< Container holding an object with named fields.
 /// @}
 
-/// Do not copy the provided data into the binn object.
-/// Used by `binn_create_value()`. The caller owns the provided data.
-/// Useful only for non-numeric data, such as strings and blobs.
-#define BINN_FLG_DATA_NO_COPY   0x01
-#define BINN_FLG_STRUCT_ON_HEAP 0x02 ///< The binn struct is allocated on the heap.
+/// The binn object is in `wrapped mode` and uses a serialized binn buffer (`binn::wrapped`).
+/// On any modification this flag is unset, the data is copied to the heap and the binn moves into
+/// `construction mode`.
+#define BINN_FLG_WRAPPED_BINN 0x04
 
-/// Binn value representation.
+/// The binn object is in `wrapped mode` but wraps only binn payload data (for example a string or blob
+/// data buffer). Used by `binn_create_value()`. The caller owns the provided data.
+/// Useful only for non-numeric data, such as strings and blobs.
+/// On any modification this flag is unset, the data is copied to the heap and the binn moves into
+/// `construction mode`.
+#define BINN_FLG_WRAPPED_PAYLOAD 0x01
+
+/// The binn struct is allocated on the heap.
+#define BINN_FLG_STRUCT_ON_HEAP 0x02
+
+/// Bitmask of all wrapped modes.
+#define BINN_FLAGS_WRAPPED (BINN_FLG_WRAPPED_BINN | BINN_FLG_WRAPPED_PAYLOAD)
+
+/// @brief Binn value.
+///
+/// A binn value struct operates in two modes:
+///
+/// 1. Construction mode. In this mode the binn is iteratively constructed from scratch by the
+///    `binn_add_xxx()` functions. It does not hold a reference to a wrapped serialized binn buffer or to
+///    wrapped payload data; instead it holds the data in `binn::val`.
+///    The binn is in construction mode if neither `BINN_FLG_WRAPPED_BINN` nor `BINN_FLG_WRAPPED_PAYLOAD` is set.
+///
+/// 2. Wrapper mode (when `BINN_FLG_WRAPPED_BINN` or `BINN_FLG_WRAPPED_PAYLOAD` is set).
+///    In this mode `binn::wrapped` points to a serialized binn buffer (`BINN_FLG_WRAPPED_BINN`), or
+///    `binn::val::bval` points to an unmodifiable data buffer (`BINN_FLG_WRAPPED_PAYLOAD`).
+///    The state of the binn structure fields is based on the given buffer. On any modification the binn is
+///    moved to construction mode (copy-on-write), leaving the wrapped buffer untouched, and the data is
+///    copied to the heap.
+///
+/// @see BINN_FLG_WRAPPED_BINN, BINN_FLG_WRAPPED_PAYLOAD
 struct binn {
-  uint16_t    flags;                    ///< Object mode and flags.
-  binn_type_t type;                     ///< Binn object type.
-  uint32_t    count;                    ///< Number of elements in the binn container.
-  uint32_t    allocated;                ///< Number of bytes allocated for `ptr`.
-  uint32_t    used;                     ///< Number of bytes actually used in the buffer owned by `ptr`.
-  size_t      size;                     ///< Size of the serialized binn object in bytes.
-                                        ///  Note: the binn object may not actually be in serialized (finalized) form.
-  uint64_t nval;                        ///< Data value for numeric types. Up to eight bytes.
-  uint8_t *bval;                        ///< Pointer to non numeric binn data buffer.
-  void    *user_data;                   ///< Optional user data associated with the binn object.
-  void     (*on_destroy)(struct binn*); ///< Optional callback invoked when the binn object is destroyed.
+  uint32_t magic;     ///< Magic number (`BINN_MAJIC_NUMBER`) used to distinguish a binn structure from a
+                      ///  serialized binn buffer.
+  uint16_t    flags;  ///< Bitmask of `BINN_FLG_*` flags.
+  binn_type_t type;   ///< Binn object type, one of the `BINN_TYPE_*` constants.
+  uint32_t    count;  ///< Number of elements in the binn container.
+                      ///  This value is iteratively updated in construction mode.
+  size_t size;        ///< Size of the serialized binn object in bytes.
+                      ///  This value is iteratively updated in construction mode.
+                      ///  Note: the binn object may not actually be in serialized (finalized) form.
+  uint32_t used;      ///< Number of bytes actually used in the buffer owned by `binn::val::bval`.
+  uint32_t allocated; ///< Number of bytes allocated for `binn::val::bval`.
+
+  /// Binn data value reference. Holds either a wrapped buffer or the constructed value.
+  union {
+    /// Points to a serialized binn buffer (`BINN_FLG_WRAPPED_BINN`) or to payload data
+    /// (`BINN_FLG_WRAPPED_PAYLOAD`) in wrapper mode.
+    void *wrapped;
+    union {
+      uint64_t nval; ///< Data value for numeric types and for any types up to eight bytes in size.
+      uint8_t *bval; ///< Pointer to a non-numeric binn data buffer.
+    } val;           ///< Binn data value in construction mode.
+  };
+
+  void *user_data;                   ///< Optional user data associated with the binn object.
+  void  (*on_destroy)(struct binn*); ///< Optional callback invoked when the binn object is destroyed.
 };
 
 /// Binn value creation specification.
 /// Used as the specification for `binn_create_value()`.
 struct binn_create_spec {
-  uint32_t    magic; ///< Magic number used to distinguish a binn structure from a serialized binn buffer.
   binn_type_t type;  ///< Type of the binn value to create. Container types are also supported.
   /// Control flags affecting binn creation. Currently in use:
-  /// - BINN_FLG_DATA_NO_COPY The value will not be copied into the binn object.
+  /// - BINN_FLG_WRAPPED_PAYLOAD The value will not be copied into the binn object.
   ///   The caller controls the provided value. A convenient way to release it
   ///   is to use an `on_destroy()` callback.
   binn_flags_t flags;
@@ -94,6 +139,8 @@ struct binn_create_spec {
 ///
 /// `spec` specifies the value `type` and the value data. If `holder` is zero, a binn structure is
 /// allocated on the heap. Container objects can also be created; in that case `value` is not used.
+///
+/// In any case resulting binn or holder should be released by `binn_destroy()`.
 ///
 /// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
 /// @param spec Value creation specification.
@@ -144,8 +191,13 @@ struct binn* binn_create_object(struct binn *holder);
 
 /// @brief Destroys a binn value. Does nothing if `binn` is zero.
 ///
-/// @param binn Binn value to destroy.
-void binn_destroy(struct binn *binn);
+/// Deallocates the `binn` struct itself only if `BINN_FLG_STRUCT_ON_HEAP` is set.
+/// Frees the `binn::val::bval` buffer if the binn is not in `wrapped mode` and its type stores the value
+/// as `bval`.
+///
+/// @param binn Binn value to destroy. May be zero.
+/// @return `true` if the `binn` struct itself was freed or was a zero, in which case the pointer is no longer valid.
+bool binn_destroy(struct binn *binn);
 
 /// @brief Returns `true` if a given `value` represents a `struct binn` object.
 ///
@@ -165,16 +217,34 @@ bool binn_is_serialized_buffer(void *value);
 /// @return `true` if `value` is a binn structure or a serialized binn value.
 bool binn_is_any(void *value);
 
-/// @brief Serializes a given binn `value` and feeds the result to the `consumer` callback.
+/// @brief Serializes a given binn object and feeds the result to the `consumer` callback.
 ///
 /// The `consumer` may be called many times as the serialized data is produced. The final call signals
 /// the end of the stream and is made with zero `data` and zero `len`.
 ///
-/// @param value A pointer to a binn struct or a serialized binn value.
+/// @param binn A pointer to a binn struct to serialize.
 /// @param consumer Callback invoked with chunks of the serialized binn buffer.
 /// @param op Optional user data passed to the `consumer` callback.
 /// @return `false` on error.
-bool binn_serialize(void *value, void (*consumer)(uint8_t *data, size_t len, void *op), void *op);
+bool binn_serialize(const struct binn *binn, void (*consumer)(uint8_t *data, size_t len, void *op), void *op);
+
+/// @brief Serializes a given binn object into a newly allocated heap buffer.
+///
+/// The returned buffer must be freed by the caller after use.
+///
+/// @param binn A pointer to a binn struct to serialize.
+/// @return Pointer to the newly allocated serialized buffer, or zero on error.
+void* binn_serialize_allocated(const struct binn *binn);
+
+/// @brief Writes a given binn object in serialized form into `buffer` of `buflen` bytes.
+///
+/// Zero is returned if the data cannot fit into the provided buffer, or on any other error.
+///
+/// @param binn A pointer to a binn struct to serialize.
+/// @param buffer Destination buffer for the serialized data.
+/// @param buflen Size of the `buffer` in bytes.
+/// @return `buffer` on success, or zero on error.
+void* binn_serialize_into(const struct binn *binn, uint8_t *buffer, size_t buflen);
 
 /// @brief Adds a `value` associated with the given string `key` to a `BINN_TYPE_OBJECT` binn object.
 ///
@@ -190,25 +260,32 @@ bool binn_add_keyed(struct binn *binn, const char *key, void *value);
 /// @param idx Numeric key to associate the value with.
 /// @param value A pointer to a binn struct or a serialized binn value.
 /// @return `false` on error.
-bool binn_add_indexed(struct binn *binn, int32_t idx, void *value);
+bool binn_add_mapped(struct binn *binn, int32_t idx, void *value);
 
 /// @brief Adds a `value` to a `BINN_TYPE_LIST` binn object.
 ///
 /// @param binn Target binn object.
 /// @param value A pointer to a binn struct or a serialized binn value.
+/// @param out_idx Optional. The zero-based index of the added element in the list is stored here.
 /// @return `false` on error.
-bool binn_add(struct binn *binn, void *value);
+bool binn_add(struct binn *binn, void *value, int32_t *out_idx);
 
-/// Binn iterator over the children of a container binn value.
+/// Binn iterator over all the children of a given container binn value.
 struct binn_iter {
   struct binn binn;                  ///< Current binn object holder. Use only when `exists` is `true`.
-  char     key[BINN_KEY_MAXLEN + 1]; ///< String key of the current binn object.
-  uint32_t idx;                      ///< Indexed key of the current binn object.
-  void    *next;                     ///< Pointer to the next child binn object.
-  bool     exists;                   ///< `true` if the iterator points to a real binn object.
+                                     ///  It is a shallow copy of a binn or serialized data element in
+                                     ///  `wrapper mode`.
+  const char *key;                   ///< Zero-terminated string key of the current object in the binn
+                                     ///  container, or zero if not applicable. A non-zero value normally
+                                     ///  points to `binn_iter::keybuf`.
+  int32_t idx;                       ///< Numeric key of the current binn object in a binn map, or `-1` if
+                                     ///  not applicable.
+  void *next;                        ///< Pointer to the next child binn object.
+  bool  exists;                      ///< `true` if the iterator points to a real binn object.
+  char  keybuf[BINN_KEY_MAXLEN + 1]; ///< Buffer holding the string key of the current binn object.
 };
 
-/// @brief Initializes an iterator over the children of the given binn object.
+/// @brief Initializes an iterator over all of the children of given binn object.
 ///
 /// At this stage the iterator does not point to any of the binn's children and requires a
 /// `binn_iter_next()` call.
@@ -228,5 +305,36 @@ bool binn_iter_next(struct binn_iter *iter);
 ///
 /// @param iter Iterator to close.
 void binn_iter_close(struct binn_iter *iter);
+
+/// @brief Performs a depth-first traversal of a binn object, calling the `visitor` for every child node.
+///
+/// The traversal stops immediately if the `visitor` returns `-1`.
+///
+/// @param binn A pointer to a binn struct to traverse.
+/// @param visitor Callback invoked for every child node.
+/// @param op Optional user data passed to the `visitor` callback.
+void binn_visit(const struct binn *binn, int (*visitor)(struct binn_iter *it, void *op), void *op);
+
+/// @brief Looks up a value associated with the given string `key` in a `BINN_TYPE_OBJECT` binn object.
+///
+/// @param binn Source binn object.
+/// @param key Key to look up.
+/// @param result Receives the found value.
+/// @return `true` if the key was found, `false` otherwise.
+///
+/// @see binn_add_keyed()
+bool binn_keyed_get(const struct binn *binn, const char *key, struct binn *result);
+
+/// @brief Looks up a `value` associated with the given numeric `idx` key in a `BINN_TYPE_MAP`
+///     or in `BINN_TYPE_LIST` binn object.
+///
+/// @param binn Source binn object.
+/// @param nkey Number key to look up in binn map or zero based index if container is a binn list.
+/// @param result Receives the found value.
+/// @return `true` if the value was found, `false` otherwise.
+///
+/// @see binn_add_mapped()
+bool binn_indexed_get(const struct binn *binn, uint32_t nkey, struct binn *result);
+
 
 #endif
