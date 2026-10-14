@@ -29,6 +29,9 @@ typedef uint16_t binn_flags_t;
 /// Max nesting levels of container binn objects.
 #define BINN_MAX_NESTING_LEVELS 255
 
+/// Minimum size in bytes of a serialized binn container (`[type][size][count]`).
+#define MIN_BINN_SIZE 3
+
 /// Binn value type identifiers.
 ///
 /// The three most significant bits encode the storage class and the remaining bits the sub-type,

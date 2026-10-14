@@ -1,6 +1,10 @@
 cc {
   set { _
     test001.c
+    test002.c
+    test003.c
+    test004.c
+    test005.c
    }
   ${CFLAGS_TESTS}
 }
