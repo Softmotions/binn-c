@@ -252,4 +252,8 @@ if { ${BINNC_BUILD_SHARED_LIBS}
 }
 
 
+if { ${BINNC_BUILD_TESTS}
+  include { t/Autark }
+}
+
 install { ${INSTALL_INCLUDE_DIR} ${PUB_HDRS} }

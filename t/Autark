@@ -1,0 +1,32 @@
+cc {
+  set { _
+    test001.c
+   }
+  ${CFLAGS_TESTS}
+}
+
+foreach {
+  OBJ
+  ${CC_OBJS}
+  run {
+    exec { ${CC} ${OBJ} ${LDFLAGS_TEST} -o %{${OBJ}} }
+    consumes { ${LIBBINNC_A} ${OBJ} }
+    produces { %{${OBJ}} }
+  }
+}
+
+if { ${BINNC_RUN_TESTS}
+#Extra resources needed for tests can be copied into autark-cache as follows.
+#run {
+#    shell { cp SS{*.data} CC{} }
+#  }
+  foreach {
+    OBJ
+    ${CC_OBJS}
+    run {
+      always
+      shell { %{${OBJ}} }
+      consumes { %{${OBJ}} }
+    }
+  }
+}
