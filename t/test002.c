@@ -6,8 +6,7 @@ static struct binn* make_scalar(binn_type_t type, const void *value, size_t sz) 
   struct binn_create_spec spec;
   memset(&spec, 0, sizeof(spec));
   spec.type = type;
-  spec.value = (void*) value;
-  spec.valuesz = sz;
+  spec.value = bv(value, sz);
   return binn_create_value(0, &spec);
 }
 
@@ -54,7 +53,7 @@ int main(int argc, char *argv[]) {
     };
     struct binn *obj = binn_create_object(0);
     struct binn *str = make_text("world");
-    BINN_ASSERT(binn_add_keyed(obj, "hello", str));
+    BINN_ASSERT(binn_add_keyed(obj, "hello", *binnv(str)));
     binn_destroy(str);
     BINN_ASSERT(obj->count == 1);
     binn_test_check_bytes(obj, expected, sizeof(expected));
@@ -73,15 +72,15 @@ int main(int argc, char *argv[]) {
     struct binn *v;
     int32_t idx = -1;
     v = make_u8(123);
-    BINN_ASSERT(binn_add(list, v, &idx));
+    BINN_ASSERT(binn_add(list, *binnv(v), &idx));
     BINN_ASSERT(idx == 0);
     binn_destroy(v);
     v = make_i16(-456);
-    BINN_ASSERT(binn_add(list, v, &idx));
+    BINN_ASSERT(binn_add(list, *binnv(v), &idx));
     BINN_ASSERT(idx == 1);
     binn_destroy(v);
     v = make_u16(789);
-    BINN_ASSERT(binn_add(list, v, &idx));
+    BINN_ASSERT(binn_add(list, *binnv(v), &idx));
     BINN_ASSERT(idx == 2);
     binn_destroy(v);
     BINN_ASSERT(list->count == 3);
@@ -104,15 +103,15 @@ int main(int argc, char *argv[]) {
     struct binn *inner = binn_create_list(0);
     struct binn *v;
     v = make_i16(-12345);
-    BINN_ASSERT(binn_add(inner, v, 0));
+    BINN_ASSERT(binn_add(inner, *binnv(v), 0));
     binn_destroy(v);
     v = make_u16(6789);
-    BINN_ASSERT(binn_add(inner, v, 0));
+    BINN_ASSERT(binn_add(inner, *binnv(v), 0));
     binn_destroy(v);
     v = make_text("add");
-    BINN_ASSERT(binn_add_mapped(map, 1, v));
+    BINN_ASSERT(binn_add_mapped(map, 1, *binnv(v)));
     binn_destroy(v);
-    BINN_ASSERT(binn_add_mapped(map, 2, inner));
+    BINN_ASSERT(binn_add_mapped(map, 2, *binnv(inner)));
     binn_destroy(inner);
     BINN_ASSERT(map->count == 2);
     binn_test_check_bytes(map, expected, sizeof(expected));
@@ -137,12 +136,12 @@ int main(int argc, char *argv[]) {
     for (i = 0; i < 2; i++) {
       obj = binn_create_object(0);
       v = make_u8((uint8_t) (i + 1));
-      BINN_ASSERT(binn_add_keyed(obj, "id", v));
+      BINN_ASSERT(binn_add_keyed(obj, "id", *binnv(v)));
       binn_destroy(v);
       v = make_text(i == 0 ? "John" : "Eric");
-      BINN_ASSERT(binn_add_keyed(obj, "name", v));
+      BINN_ASSERT(binn_add_keyed(obj, "name", *binnv(v)));
       binn_destroy(v);
-      BINN_ASSERT(binn_add(list, obj, 0));
+      BINN_ASSERT(binn_add(list, *binnv(obj), 0));
       binn_destroy(obj);
     }
     BINN_ASSERT(list->count == 2);

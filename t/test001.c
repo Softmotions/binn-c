@@ -6,8 +6,7 @@ static struct binn* make_value(binn_type_t type, const void *value, size_t value
   struct binn_create_spec spec;
   memset(&spec, 0, sizeof(spec));
   spec.type = type;
-  spec.value = (void*) value;
-  spec.valuesz = valuesz;
+  spec.value = bv(value, valuesz);
   return binn_create_value(0, &spec);
 }
 
@@ -100,7 +99,7 @@ int main(int argc, char *argv[]) {
     check_scalar(BINN_TYPE_TEXT, "world", 5, e_text, sizeof(e_text));
     check_scalar(BINN_TYPE_TEXT, "", 0, e_empty, sizeof(e_empty));
     check_scalar(BINN_TYPE_BLOB, "\x01\x02\x03", 3, e_blob, sizeof(e_blob));
-    // strlen() is used when valuesz is zero.
+    // strlen() is used when the value size is zero.
     check_scalar(BINN_TYPE_TEXT, "world", 0, e_text, sizeof(e_text));
   }
 
@@ -143,8 +142,8 @@ int main(int argc, char *argv[]) {
     uint8_t big[8];
     uint16_t v = 0x15;
     struct binn *b = make_value(BINN_TYPE_UINT16, &v, sizeof(v));
-    BINN_ASSERT(binn_serialize_into(b, small, sizeof(small)) == 0);
-    BINN_ASSERT(binn_serialize_into(b, big, sizeof(big)) == big);
+    BINN_ASSERT(binn_serialize_into(b, small, 1).buf == 0);
+    BINN_ASSERT(binn_serialize_into(b, big, sizeof(big)).buf == big);
     BINN_ASSERT(big[0] == 0x40 && big[1] == 0x00 && big[2] == 0x15);
     binn_destroy(b);
   }

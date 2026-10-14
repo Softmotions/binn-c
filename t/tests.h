@@ -30,25 +30,35 @@ static atomic_int binn_assertions_failed;
           fputs(__FILE__ ":" __S(__LINE__) " Memory mismatch\n", stderr); \
         }
 
+/// Builds a bounded buffer reference for tests.
+static struct binn_val bv(const void *buf, size_t size) {
+  struct binn_val v;
+  v.buf = (void*) buf;
+  v.size = size;
+  return v;
+}
+
 /// Serializes `b` and compares the result with the expected byte sequence.
 static void binn_test_check_bytes(const struct binn *b, const uint8_t *expected, size_t len) {
-  void *buf = binn_serialize_allocated(b);
-  BINN_ASSERT(buf != 0);
-  if (!buf) {
+  struct binn_val buf = binn_serialize_allocated(b);
+  BINN_ASSERT(buf.buf != 0);
+  if (!buf.buf) {
     return;
   }
   BINN_ASSERT(b->size == len);
-  BINN_ASSERT_MEM(buf, expected, len);
-  free(buf);
+  BINN_ASSERT(buf.size == len);
+  BINN_ASSERT_MEM(buf.buf, expected, len);
+  free(buf.buf);
 }
 
 /// Serializes `b` and checks that the result is `len` bytes long.
 static void binn_test_check_size(const struct binn *b, size_t len) {
-  void *buf = binn_serialize_allocated(b);
-  BINN_ASSERT(buf != 0);
-  if (!buf) {
+  struct binn_val buf = binn_serialize_allocated(b);
+  BINN_ASSERT(buf.buf != 0);
+  if (!buf.buf) {
     return;
   }
   BINN_ASSERT(b->size == len);
-  free(buf);
+  BINN_ASSERT(buf.size == len);
+  free(buf.buf);
 }

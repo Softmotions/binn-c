@@ -6,8 +6,7 @@ static struct binn* make_scalar(binn_type_t type, const void *value, size_t sz) 
   struct binn_create_spec spec;
   memset(&spec, 0, sizeof(spec));
   spec.type = type;
-  spec.value = (void*) value;
-  spec.valuesz = sz;
+  spec.value = bv(value, sz);
   return binn_create_value(0, &spec);
 }
 
@@ -20,7 +19,10 @@ static struct binn* make_u8(uint8_t v) {
 }
 
 static struct binn* make_bool(bool v) {
-  return binn_create_value(0, &(struct binn_create_spec) { .type = v ? BINN_TYPE_TRUE : BINN_TYPE_FALSE });
+  struct binn_create_spec spec;
+  memset(&spec, 0, sizeof(spec));
+  spec.type = v ? BINN_TYPE_TRUE : BINN_TYPE_FALSE;
+  return binn_create_value(0, &spec);
 }
 
 static struct binn* make_object_fixture(void) {
@@ -28,16 +30,16 @@ static struct binn* make_object_fixture(void) {
   struct binn *v;
   double points = 30.5;
   v = make_u8(1);
-  BINN_ASSERT(binn_add_keyed(obj, "id", v));
+  BINN_ASSERT(binn_add_keyed(obj, "id", *binnv(v)));
   binn_destroy(v);
   v = make_text("John");
-  BINN_ASSERT(binn_add_keyed(obj, "name", v));
+  BINN_ASSERT(binn_add_keyed(obj, "name", *binnv(v)));
   binn_destroy(v);
   v = make_scalar(BINN_TYPE_DOUBLE, &points, sizeof(points));
-  BINN_ASSERT(binn_add_keyed(obj, "points", v));
+  BINN_ASSERT(binn_add_keyed(obj, "points", *binnv(v)));
   binn_destroy(v);
   v = make_bool(true);
-  BINN_ASSERT(binn_add_keyed(obj, "active", v));
+  BINN_ASSERT(binn_add_keyed(obj, "active", *binnv(v)));
   binn_destroy(v);
   return obj;
 }
@@ -84,7 +86,7 @@ int main(int argc, char *argv[]) {
   {
     struct binn_iter it;
     int n = 0;
-    BINN_ASSERT(binn_iter_init(obj, &it));
+    BINN_ASSERT(binn_iter_init(*binnv(obj), &it));
     while (binn_iter_next(&it)) {
       BINN_ASSERT(it.exists);
       BINN_ASSERT(it.key != 0);
@@ -123,13 +125,13 @@ int main(int argc, char *argv[]) {
     int ids[3];
     int n = 0;
     v = make_u8(10);
-    BINN_ASSERT(binn_add_mapped(map, 1, v));
+    BINN_ASSERT(binn_add_mapped(map, 1, *binnv(v)));
     binn_destroy(v);
     v = make_text("the value");
-    BINN_ASSERT(binn_add_mapped(map, 5, v));
+    BINN_ASSERT(binn_add_mapped(map, 5, *binnv(v)));
     binn_destroy(v);
     v = make_bool(true);
-    BINN_ASSERT(binn_add_mapped(map, 7, v));
+    BINN_ASSERT(binn_add_mapped(map, 7, *binnv(v)));
     binn_destroy(v);
 
     BINN_ASSERT(binn_indexed_get(map, 1, &found));
@@ -140,7 +142,7 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(found.type == BINN_TYPE_TRUE);
     BINN_ASSERT(!binn_indexed_get(map, 3, &found));
 
-    BINN_ASSERT(binn_iter_init(map, &it));
+    BINN_ASSERT(binn_iter_init(*binnv(map), &it));
     while (binn_iter_next(&it)) {
       BINN_ASSERT(it.key == 0);
       BINN_ASSERT(n < 3);
@@ -160,17 +162,19 @@ int main(int argc, char *argv[]) {
     struct binn found;
     int32_t expect[3] = { 123, -456, 789 };
     int n = 0;
+    int16_t i16 = -456;
+    uint16_t u16 = 789;
     v = make_u8(123);
-    BINN_ASSERT(binn_add(list, v, 0));
+    BINN_ASSERT(binn_add(list, *binnv(v), 0));
     binn_destroy(v);
-    v = make_scalar(BINN_TYPE_INT16, &(int16_t) { -456 }, sizeof(int16_t));
-    BINN_ASSERT(binn_add(list, v, 0));
+    v = make_scalar(BINN_TYPE_INT16, &i16, sizeof(i16));
+    BINN_ASSERT(binn_add(list, *binnv(v), 0));
     binn_destroy(v);
-    v = make_scalar(BINN_TYPE_UINT16, &(uint16_t) { 789 }, sizeof(uint16_t));
-    BINN_ASSERT(binn_add(list, v, 0));
+    v = make_scalar(BINN_TYPE_UINT16, &u16, sizeof(u16));
+    BINN_ASSERT(binn_add(list, *binnv(v), 0));
     binn_destroy(v);
 
-    BINN_ASSERT(binn_iter_init(list, &it));
+    BINN_ASSERT(binn_iter_init(*binnv(list), &it));
     while (binn_iter_next(&it)) {
       int64_t got = (int64_t) it.binn.val.nval;
       BINN_ASSERT(it.key == 0);
@@ -197,18 +201,18 @@ int main(int argc, char *argv[]) {
     int stopped = 0;
 
     v = make_u8(1);
-    BINN_ASSERT(binn_add(inner_list, v, 0));
+    BINN_ASSERT(binn_add(inner_list, *binnv(v), 0));
     binn_destroy(v);
     v = make_u8(2);
-    BINN_ASSERT(binn_add(inner_list, v, 0));
+    BINN_ASSERT(binn_add(inner_list, *binnv(v), 0));
     binn_destroy(v);
     v = make_u8(3);
-    BINN_ASSERT(binn_add_keyed(inner_obj, "c", v));
+    BINN_ASSERT(binn_add_keyed(inner_obj, "c", *binnv(v)));
     binn_destroy(v);
 
-    BINN_ASSERT(binn_add_keyed(root, "a", inner_list));
+    BINN_ASSERT(binn_add_keyed(root, "a", *binnv(inner_list)));
     binn_destroy(inner_list);
-    BINN_ASSERT(binn_add_keyed(root, "b", inner_obj));
+    BINN_ASSERT(binn_add_keyed(root, "b", *binnv(inner_obj)));
     binn_destroy(inner_obj);
 
     binn_visit(root, count_visitor, &count);
@@ -222,8 +226,8 @@ int main(int argc, char *argv[]) {
 
   // Wrapping a serialized buffer, copy-on-write, and binn_copy_from().
   {
-    void *buf = binn_serialize_allocated(obj);
-    size_t buflen = obj->size;
+    struct binn_val buf = binn_serialize_allocated(obj);
+    size_t buflen = buf.size;
     uint8_t *saved;
     struct binn holder;
     struct binn *w;
@@ -232,14 +236,14 @@ int main(int argc, char *argv[]) {
     struct binn found;
     struct binn_iter it;
 
-    BINN_ASSERT(buf != 0);
+    BINN_ASSERT(buf.buf != 0);
     saved = (uint8_t*) malloc(buflen);
-    memcpy(saved, buf, buflen);
+    memcpy(saved, buf.buf, buflen);
 
-    BINN_ASSERT(buf != 0 && binn_is_serialized_buffer(buf));
+    BINN_ASSERT(binn_is_serialized_buffer(buf));
     BINN_ASSERT(!binn_is_struct_instance(buf));
     BINN_ASSERT(binn_is_any(buf));
-    BINN_ASSERT(binn_is_any(obj));
+    BINN_ASSERT(binn_is_any(*binnv(obj)));
 
     w = binn_from(&holder, buf, &casted);
     BINN_ASSERT(w == &holder);
@@ -253,7 +257,7 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(found.type == BINN_TYPE_TEXT);
     BINN_ASSERT(found.used == 4 && memcmp(found.val.bval, "John", 4) == 0);
 
-    BINN_ASSERT(binn_iter_init(w, &it));
+    BINN_ASSERT(binn_iter_init(*binnv(w), &it));
     BINN_ASSERT(binn_iter_next(&it));
     BINN_ASSERT(strcmp(it.key, "id") == 0);
     binn_iter_close(&it);
@@ -261,34 +265,38 @@ int main(int argc, char *argv[]) {
     // Casting an existing struct.
     {
       bool c2 = false;
-      struct binn *c = binn_from(0, obj, &c2);
+      struct binn *c = binn_from(0, *binnv(obj), &c2);
       BINN_ASSERT(c == obj && c2 == true);
     }
 
     // Modification triggers copy-on-write.
     v = make_u8(42);
-    BINN_ASSERT(binn_add_keyed(w, "extra", v));
+    BINN_ASSERT(binn_add_keyed(w, "extra", *binnv(v)));
     binn_destroy(v);
     BINN_ASSERT(!(w->flags & BINN_FLAGS_WRAPPED));
-    BINN_ASSERT_MEM(buf, saved, buflen); // the wrapped buffer is untouched
+    BINN_ASSERT_MEM(buf.buf, saved, buflen); // the wrapped buffer is untouched
 
     // binn_copy_from() produces an independent construction mode value.
     {
-      struct binn *cp = binn_copy_from(0, obj);
+      struct binn *cp = binn_copy_from(0, *binnv(obj));
+      struct binn *cp2 = binn_copy_from(0, buf);
       struct binn *cv;
       BINN_ASSERT(cp != 0);
+      BINN_ASSERT(cp2 != 0);
       BINN_ASSERT(!(cp->flags & BINN_FLAGS_WRAPPED));
       BINN_ASSERT(cp->count == obj->count);
+      BINN_ASSERT(cp2->count == obj->count);
       cv = make_u8(7);
-      BINN_ASSERT(binn_add_keyed(cp, "added", cv));
+      BINN_ASSERT(binn_add_keyed(cp, "added", *binnv(cv)));
       binn_destroy(cv);
       BINN_ASSERT(binn_keyed_get(obj, "added", &found) == false);
       binn_destroy(cp);
+      binn_destroy(cp2);
     }
 
     BINN_ASSERT(binn_destroy(w) == false); // stack holder: not freed
     free(saved);
-    free(buf);
+    free(buf.buf);
   }
 
   binn_destroy(obj);
