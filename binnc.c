@@ -32,6 +32,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/types.h>
 
 /* ------------------------------------------------------------------ */
 /* Internal constants                                                 */
@@ -1039,6 +1040,91 @@ struct binn* binn_create_object(struct binn *holder) {
   struct binn_create_spec spec;
   memset(&spec, 0, sizeof(spec));
   spec.type = BINN_TYPE_OBJECT;
+  return binn_create_value(holder, &spec);
+}
+
+/// Creates a numeric scalar of the given type directly from a host order value.
+static struct binn* create_numeric_value(struct binn *holder, binn_type_t type, uint64_t nval) {
+  struct binn *b;
+  int storage;
+  type = type_canonical(type);
+  storage = type_storage(type);
+  b = alloc_holder(holder);
+  if (!b) {
+    return 0;
+  }
+  b->type = type;
+  b->val.nval = nval;
+  b->used = (uint32_t) storage_bytes(storage);
+  b->size = leaf_serialized_size(type, b->used);
+  return b;
+}
+
+struct binn* binn_create_u64c(struct binn *holder, uint64_t val) {
+  binn_type_t type;
+  if (val <= UINT8_MAX) {
+    type = BINN_TYPE_UINT8;
+  } else if (val <= UINT16_MAX) {
+    type = BINN_TYPE_UINT16;
+  } else if (val <= UINT32_MAX) {
+    type = BINN_TYPE_UIN32;
+  } else {
+    type = BINN_TYPE_UINT64;
+  }
+  return create_numeric_value(holder, type, val);
+}
+
+struct binn* binn_create_i64c(struct binn *holder, int64_t val) {
+  binn_type_t type;
+  if (val >= INT8_MIN && val <= INT8_MAX) {
+    type = BINN_TYPE_INT8;
+  } else if (val >= INT16_MIN && val <= INT16_MAX) {
+    type = BINN_TYPE_INT16;
+  } else if (val >= INT32_MIN && val <= INT32_MAX) {
+    type = BINN_TYPE_INT32;
+  } else {
+    type = BINN_TYPE_IN64;
+  }
+  return create_numeric_value(holder, type, (uint64_t) val);
+}
+
+struct binn* binn_create_f32c(struct binn *holder, float val) {
+  uint32_t bits;
+  memcpy(&bits, &val, sizeof(bits));
+  return create_numeric_value(holder, BINN_TYPE_FLOAT, bits);
+}
+
+struct binn* binn_create_f64c(struct binn *holder, double val) {
+  float f32 = (float) val;
+  if ((double) f32 == val) {
+    uint32_t bits;
+    memcpy(&bits, &f32, sizeof(bits));
+    return create_numeric_value(holder, BINN_TYPE_FLOAT, bits);
+  } else {
+    uint64_t bits;
+    memcpy(&bits, &val, sizeof(bits));
+    return create_numeric_value(holder, BINN_TYPE_DOUBLE, bits);
+  }
+}
+
+struct binn* binn_create_text(struct binn *holder, const char *val, ssize_t vallen) {
+  struct binn_create_spec spec;
+  memset(&spec, 0, sizeof(spec));
+  spec.type = BINN_TYPE_TEXT;
+  if (vallen < 0) {
+    if (val) {
+      spec.value.buf = (void*) (uintptr_t) val;
+      spec.value.size = strlen(val);
+    }
+  } else if (vallen > 0) {
+    if (!val) {
+      errno = EINVAL;
+      return 0;
+    }
+    spec.value.buf = (void*) (uintptr_t) val;
+    spec.value.size = (size_t) vallen;
+  }
+  // A non positive `vallen` yields an empty text value.
   return binn_create_value(holder, &spec);
 }
 

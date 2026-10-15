@@ -5,6 +5,7 @@ cc {
     test003.c
     test004.c
     test005.c
+    test006.c
    }
   ${CFLAGS_TESTS}
 }

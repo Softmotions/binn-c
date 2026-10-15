@@ -255,16 +255,19 @@ static struct binn* fuzz_build(int depth, const uint8_t *data, size_t size, size
       return fuzz_mk(BINN_TYPE_INT16, &x, sizeof(x));
     }
     case 2: {
-      uint32_t x = ((uint32_t) fuzz_byte(data, size, pos) << 8) | fuzz_byte(data, size, pos);
-      return fuzz_mk(BINN_TYPE_UIN32, &x, sizeof(x));
+      uint64_t x = ((uint64_t) fuzz_byte(data, size, pos) << 8) | fuzz_byte(data, size, pos);
+      return binn_create_u64c(0, x);
     }
     case 3: {
       int64_t x = -(int64_t) fuzz_byte(data, size, pos);
-      return fuzz_mk(BINN_TYPE_IN64, &x, sizeof(x));
+      return binn_create_i64c(0, x);
     }
     case 4: {
       double x = (double) fuzz_byte(data, size, pos) / 3.0;
-      return fuzz_mk(BINN_TYPE_DOUBLE, &x, sizeof(x));
+      if (sel & 0x10) {
+        return binn_create_f32c(0, (float) x);
+      }
+      return binn_create_f64c(0, x);
     }
     case 5: {
       size_t n = fuzz_byte(data, size, pos) % 24;
@@ -274,7 +277,7 @@ static struct binn* fuzz_build(int depth, const uint8_t *data, size_t size, size
         n = avail;
       }
       *pos += n;
-      return n ? fuzz_mk(BINN_TYPE_TEXT, p, n) : fuzz_mk(BINN_TYPE_TEXT, 0, 0);
+      return binn_create_text(0, (const char*) p, n ? (ssize_t) n : 0);
     }
     case 6: {
       size_t n = fuzz_byte(data, size, pos) % 24;

@@ -176,6 +176,67 @@ void binnc_version_get(struct binnc_version *out_version);
 /// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
 struct binn* binn_create_value(struct binn *holder, const struct binn_create_spec *spec);
 
+/// @brief Creates an unsigned integer scalar holding `val`, using automatic integer compression.
+///
+/// The narrowest unsigned integer type able to represent `val` is selected, one of
+/// `BINN_TYPE_UINT8`, `BINN_TYPE_UINT16`, `BINN_TYPE_UIN32` or `BINN_TYPE_UINT64`.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Value to store.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_u64c(struct binn *holder, uint64_t val);
+
+/// @brief Creates a signed integer scalar holding `val`, using automatic integer compression.
+///
+/// The narrowest signed integer type able to represent `val` is selected, one of
+/// `BINN_TYPE_INT8`, `BINN_TYPE_INT16`, `BINN_TYPE_INT32` or `BINN_TYPE_IN64`.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Value to store.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_i64c(struct binn *holder, int64_t val);
+
+/// @brief Creates a single precision floating point scalar (`BINN_TYPE_FLOAT`) holding `val`.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Value to store.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_f32c(struct binn *holder, float val);
+
+/// @brief Creates a floating point scalar holding `val`, using automatic floating point compression.
+///
+/// `BINN_TYPE_FLOAT` is used when `val` can be represented as a 32-bit float without loss of
+/// precision, otherwise `BINN_TYPE_DOUBLE` is used.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Value to store.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_f64c(struct binn *holder, double val);
+
+/// @brief Creates a UTF-8 text scalar (`BINN_TYPE_TEXT`) holding `val`.
+///
+/// `vallen` is the byte length of `val`, excluding the terminating null byte; the input does not have
+/// to be null terminated. A negative `vallen` makes the length be derived with `strlen(val)`.
+/// A zero `val` creates an empty text value.
+///
+/// The text is copied into the created value.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Text to store, or zero to create an empty text value.
+/// @param vallen Byte length of `val`, or a negative value to derive it with `strlen(val)`.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_text(struct binn *holder, const char *val, ssize_t vallen);
+
 /// @brief Creates a new binn value that wraps the given serialized binn `value`.
 ///
 /// If `value` points to a `struct binn` already, it is cast to `struct binn*` instead of being wrapped,

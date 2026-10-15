@@ -1,2 +1,7 @@
+2026-10-15 Anton Adamansky  <adamansky@gmail.com>  [v0.2.0-dev]
+  * Added a set of binn creation functions with automatic number compression:
+    binn_create_u64c(), binn_create_i64c(), binn_create_f32c(), binn_create_f64c()
+    and binn_create_text().
+
 2026-10-15 Anton Adamansky  <adamansky@gmail.com>  [v0.1.0]
- * Initial implementation
+  * Initial implementation
