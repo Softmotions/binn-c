@@ -21,5 +21,3 @@ Checks:    >
   -performance-no-int-to-ptr,
   -bugprone-assignment-in-if-condition,
   -modernize-macro-to-enum,
-
-...

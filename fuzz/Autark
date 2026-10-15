@@ -1,0 +1,25 @@
+# Portable randomized fuzzy driver.
+cc {
+  fuzz_standalone.c
+  ${CFLAGS_TESTS}
+}
+set { FUZZ_DRIVER_OBJS ..${CC_OBJS} }
+run {
+  exec { ${CC} ${FUZZ_DRIVER_OBJS} ${LDFLAGS_TEST} -o fuzzdriver }
+  consumes { ${LIBBINNC_A} ${FUZZ_DRIVER_OBJS} }
+  produces { fuzzdriver }
+}
+
+# Coverage guided libFuzzer target (clang only).
+if { contains { ${CC} clang }
+  cc {
+    fuzz001.c
+    set { _ ${CFLAGS_TESTS} -fsanitize=fuzzer }
+  }
+  set { FUZZ_LIBFUZZER_OBJS ..${CC_OBJS} }
+  run {
+    exec { ${CC} ${FUZZ_LIBFUZZER_OBJS} ${LDFLAGS_TEST} -fsanitize=fuzzer -o fuzzlib }
+    consumes { ${LIBBINNC_A} ${FUZZ_LIBFUZZER_OBJS} }
+    produces { fuzzlib }
+  }
+}

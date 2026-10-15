@@ -179,6 +179,103 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(binn_from(0, bv(valid_obj, sizeof(valid_obj) - 1), &casted) == 0);
   }
 
+  // binn_from_unchecked() skips full structural validation but stays memory safe.
+  {
+    uint8_t bad_container[8] = { 0xE0, 0x03, 0x05, 0x00, 0x00, 0x00, 0x00, 0x00 };
+    static const uint8_t valid_obj[] = {
+      0xE2, 0x11, 0x01,
+      0x05, 'h', 'e', 'l', 'l', 'o',
+      0xA0, 0x05, 'w', 'o', 'r', 'l', 'd', 0x00
+    };
+    struct binn holder;
+    struct binn *w;
+    struct binn_iter it;
+    bool casted = true;
+
+    // The checked variant rejects the inconsistent child count.
+    BINN_ASSERT(binn_from(&holder, bv(bad_container, sizeof(bad_container)), &casted) == 0);
+
+    // The unchecked variant wraps it, but iteration terminates safely.
+    w = binn_from_unchecked(&holder, bv(bad_container, sizeof(bad_container)), &casted);
+    BINN_ASSERT(w == &holder && casted == false);
+    BINN_ASSERT(w->count == 5);
+    BINN_ASSERT(binn_iter_init(*binnv(w), &it));
+    BINN_ASSERT(!binn_iter_next(&it));
+    BINN_ASSERT(!it.exists);
+    binn_iter_close(&it);
+    BINN_ASSERT(binn_destroy(w) == false);
+
+    // A truncated buffer is still rejected by the root parse in both variants.
+    BINN_ASSERT(binn_from_unchecked(&holder, bv(valid_obj, sizeof(valid_obj) - 1), &casted) == 0);
+
+    // A valid buffer wraps and reads normally.
+    w = binn_from_unchecked(&holder, bv(valid_obj, sizeof(valid_obj)), &casted);
+    BINN_ASSERT(w == &holder && casted == false);
+    BINN_ASSERT(w->count == 1);
+    BINN_ASSERT(binn_iter_init(*binnv(w), &it));
+    BINN_ASSERT(binn_iter_next(&it));
+    BINN_ASSERT(strcmp(it.key, "hello") == 0);
+    binn_iter_close(&it);
+    BINN_ASSERT(binn_destroy(w) == false);
+  }
+
+  // A serialized buffer that merely starts with the magic number must not be treated as a struct.
+  {
+    uint8_t spoof[128];
+    struct binn holder;
+    struct binn *b;
+    bool casted = true;
+    memset(spoof, 0, sizeof(spoof));
+    spoof[0] = 0x1F;
+    spoof[1] = 0xB1;
+    spoof[2] = 0x22;
+    spoof[3] = 0x1F;
+    spoof[4] = 0xFF;
+    spoof[5] = 0x01; // invalid flag bits
+    BINN_ASSERT(!binn_is_struct_instance(bv(spoof, sizeof(spoof))));
+    BINN_ASSERT(binn_is_serialized_buffer(bv(spoof, sizeof(spoof))));
+    b = binn_from(&holder, bv(spoof, sizeof(spoof)), &casted);
+    BINN_ASSERT(b == &holder && casted == false);
+    BINN_ASSERT(binn_destroy(b) == false);
+  }
+
+  // Containers using the extended (two byte) type encoding.
+  {
+    binn_type_t et = (binn_type_t) ((7u << 13) | 0x1000u | 21u); // 0xF015
+    static const uint8_t e_empty[] = { 0xF0, 0x15, 0x04, 0x00 };
+    static const uint8_t e_one[] = { 0xF0, 0x15, 0x06, 0x01, 0x20, 0x2A };
+    struct binn holder;
+    struct binn *w;
+    struct binn *cp;
+    bool casted = true;
+
+    BINN_ASSERT(et == 0xF015);
+
+    // Empty construction mode container with an extended type.
+    {
+      struct binn_create_spec spec;
+      struct binn *b;
+      memset(&spec, 0, sizeof(spec));
+      spec.type = et;
+      b = binn_create_value(0, &spec);
+      BINN_ASSERT(b != 0);
+      binn_test_check_bytes(b, e_empty, sizeof(e_empty));
+      binn_destroy(b);
+    }
+
+    // Wrapping and copying an extended type container holding one child.
+    BINN_ASSERT(binn_is_serialized_buffer(bv(e_one, sizeof(e_one))));
+    w = binn_from(&holder, bv(e_one, sizeof(e_one)), &casted);
+    BINN_ASSERT(w != 0 && casted == false);
+    binn_test_check_bytes(w, e_one, sizeof(e_one));
+    BINN_ASSERT(binn_destroy(w) == false);
+
+    cp = binn_copy_from(0, bv(e_one, sizeof(e_one)));
+    BINN_ASSERT(cp != 0);
+    binn_test_check_bytes(cp, e_one, sizeof(e_one));
+    binn_destroy(cp);
+  }
+
   // binn_serialize_into() size checks.
   {
     uint8_t buf[2] = { 0, 0 };

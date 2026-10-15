@@ -28,6 +28,7 @@
 #include "binnc_cfg.h" // IWYU pragma: keep
 
 #include <errno.h>
+#include <stddef.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -390,74 +391,17 @@ static const uint8_t* parse_value(const uint8_t *p, const uint8_t *end, struct v
   }
 }
 
-/// Recursively validates the children of a container.
-/// The recursion is bounded by `BINN_MAX_NESTING_LEVELS`.
-static bool validate_children(const uint8_t *cp, const uint8_t *cend, binn_type_t ctype, uint32_t count, int depth) { // NOLINT(misc-no-recursion)
-  uint32_t cnt = 0;
-  int subtype;
-  if (depth > BINN_MAX_NESTING_LEVELS) {
-    return false;
-  }
-  subtype = type_subtype(ctype);
-  while (cp < cend) {
-    struct value_meta cm;
-    const uint8_t *np;
-    if (subtype == BINN_SUBTYPE_MAP) { // map key: 4 bytes big endian
-      if ((size_t) (cend - cp) < 4) {
-        return false;
-      }
-      cp += 4;
-    } else if (subtype == BINN_SUBTYPE_OBJECT) { // object key: 1 byte length + bytes
-      uint8_t klen;
-      if (cp >= cend) {
-        return false;
-      }
-      klen = *cp++;
-      if ((size_t) (cend - cp) < klen) {
-        return false;
-      }
-      cp += klen;
-    }
-    np = parse_value(cp, cend, &cm);
-    if (!np) {
-      return false;
-    }
-    if (cm.storage == BINN_ST_CONTAINER) {
-      if (!validate_children(cm.payload, cm.payload + cm.payload_len, cm.type, cm.count, depth + 1)) {
-        return false;
-      }
-    }
-    cp = np;
-    cnt++;
-    if (cnt > count) {
-      return false;
-    }
-  }
-  return (cp == cend) && (cnt == count);
-}
-
-/// Validates that `p` holds a structurally sound serialized binn value.
-static bool validate_value(const uint8_t *p, const uint8_t *end, int depth) {
-  struct value_meta m;
-  if (!parse_value(p, end, &m)) {
-    return false;
-  }
-  if (m.storage == BINN_ST_CONTAINER) {
-    return validate_children(m.payload, m.payload + m.payload_len, m.type, m.count, depth);
-  }
-  return true;
-}
-
-/// Computes the container nesting depth of a serialized value.
+/// Validates a serialized value and computes its container nesting depth.
 /// A leaf has depth 0, a container has depth `1 + max(child depth)`.
-/// Returns -1 if the value is malformed or deeper than `limit`.
+/// Returns -1 if the value is malformed, has an inconsistent element count, or is deeper than `limit`.
 /// The recursion is bounded by `limit`.
-static int serialized_depth_limit(const uint8_t *p, const uint8_t *end, int limit) { // NOLINT(misc-no-recursion)
+static int validate_depth(const uint8_t *p, const uint8_t *end, int limit) { // NOLINT(misc-no-recursion)
   struct value_meta m;
   int subtype;
   const uint8_t *cp;
   const uint8_t *cend;
   int maxd = 0;
+  uint32_t cnt = 0;
 
   if (limit < 0) {
     return -1;
@@ -477,12 +421,12 @@ static int serialized_depth_limit(const uint8_t *p, const uint8_t *end, int limi
   while (cp < cend) {
     struct value_meta cm;
     const uint8_t *np;
-    if (subtype == BINN_SUBTYPE_MAP) {
+    if (subtype == BINN_SUBTYPE_MAP) { // map key: 4 bytes big endian
       if ((size_t) (cend - cp) < 4) {
         return -1;
       }
       cp += 4;
-    } else if (subtype == BINN_SUBTYPE_OBJECT) {
+    } else if (subtype == BINN_SUBTYPE_OBJECT) { // object key: 1 byte length + bytes
       uint8_t klen;
       if (cp >= cend) {
         return -1;
@@ -498,7 +442,7 @@ static int serialized_depth_limit(const uint8_t *p, const uint8_t *end, int limi
       return -1;
     }
     if (cm.storage == BINN_ST_CONTAINER) {
-      int d = serialized_depth_limit(cp, cend, limit - 1);
+      int d = validate_depth(cp, cend, limit - 1);
       if (d < 0) {
         return -1;
       }
@@ -507,11 +451,22 @@ static int serialized_depth_limit(const uint8_t *p, const uint8_t *end, int limi
       }
     }
     cp = np;
+    if (++cnt > m.count) {
+      return -1;
+    }
+  }
+  if (cp != cend || cnt != m.count) {
+    return -1;
   }
   if (maxd + 1 > limit) {
     return -1;
   }
   return maxd + 1;
+}
+
+/// Validates that `p` holds a structurally sound serialized binn value.
+static inline bool validate_value(const uint8_t *p, const uint8_t *end) {
+  return validate_depth(p, end, BINN_MAX_NESTING_LEVELS) >= 0;
 }
 
 /* ------------------------------------------------------------------ */
@@ -559,10 +514,11 @@ static bool stream_sink_write(void *ctx, const uint8_t *data, size_t len) {
 /// Total serialized size of a construction mode container (header + children).
 static inline size_t container_serialized_size(const struct binn *b) {
   size_t content = b->used;
+  size_t type_sz = type_encoded_size(b->type);
   size_t count_sz = size_param_size(b->count);
-  size_t total = 1 + 1 + count_sz + content;
+  size_t total = type_sz + 1 + count_sz + content;
   if (total > 127) {
-    total = 1 + 4 + count_sz + content;
+    total = type_sz + 4 + count_sz + content;
   }
   return total;
 }
@@ -667,12 +623,14 @@ static void free_holder(struct binn *b, struct binn *holder) {
 
 /// Fills a wrapper mode binn pointing at a serialized value found at `start`.
 static void fill_wrapper(struct binn *out, const uint8_t *start, const struct value_meta *m) {
-  memset(out, 0, sizeof(*out));
   out->magic = BINN_MAJIC_NUMBER;
   out->type = m->type;
   out->size = m->total;
   out->count = m->count;
   out->used = (uint32_t) m->payload_len;
+  out->allocated = 0;
+  out->user_data = 0;
+  out->on_destroy = 0;
   if (m->storage == BINN_ST_CONTAINER) {
     out->flags = BINN_FLG_WRAPPED_BINN;
     out->wrapped = binn_val_make(start, m->total);
@@ -682,6 +640,7 @@ static void fill_wrapper(struct binn *out, const uint8_t *start, const struct va
       out->wrapped = binn_val_make(m->payload, m->payload_len);
     } else {
       out->val.nval = load_scalar(m->payload, m->storage, type_is_signed_int(m->type));
+      out->wrapped.size = m->payload_len;
     }
   }
 }
@@ -770,6 +729,7 @@ static bool container_add_value(struct binn *b, const uint8_t *prefix, size_t pr
   const struct binn *v = 0;
   const uint8_t *raw = 0;
   size_t value_len = 0;
+  bool is_container = false;
   uint8_t *dst;
 
   if (!value.buf) {
@@ -785,6 +745,7 @@ static bool container_add_value(struct binn *b, const uint8_t *prefix, size_t pr
       errno = EINVAL; // self reference
       return false;
     }
+    is_container = type_is_container(v->type);
     value_len = value_serialized_size(v);
   } else {
     const uint8_t *end;
@@ -794,12 +755,13 @@ static bool container_add_value(struct binn *b, const uint8_t *prefix, size_t pr
       return false;
     }
     end = (const uint8_t*) value.buf + value.size;
-    if (!parse_value(value.buf, end, &m) || !validate_value(value.buf, end, 0)) {
+    if (!parse_value(value.buf, end, &m)) {
       errno = EINVAL;
       return false;
     }
     raw = value.buf;
     value_len = m.total;
+    is_container = (m.storage == BINN_ST_CONTAINER);
   }
 
   if (!container_reserve(b, prefix_len + value_len)) {
@@ -825,7 +787,9 @@ static bool container_add_value(struct binn *b, const uint8_t *prefix, size_t pr
   } else if (value_len) {
     memcpy(dst, raw, value_len);
   }
-  if (value_len && serialized_depth_limit(dst, dst + value_len, BINN_MAX_NESTING_LEVELS - 1) < 0) {
+  // Validate the container structure and enforce the nesting limit in a single pass. Leaf values are
+  // fully bounds checked by `parse_value()` above and have no nesting to account for.
+  if (is_container && validate_depth(dst, dst + value_len, BINN_MAX_NESTING_LEVELS - 1) < 0) {
     errno = EINVAL;
     return false;
   }
@@ -998,7 +962,7 @@ struct binn* binn_create_object(struct binn *holder) {
   return binn_create_value(holder, &spec);
 }
 
-struct binn* binn_from(struct binn *holder, struct binn_val value, bool *out_casted) {
+static struct binn* binn_from_impl(struct binn *holder, struct binn_val value, bool *out_casted, bool validate) {
   const uint8_t *buf;
   const uint8_t *end;
   struct value_meta m;
@@ -1019,7 +983,11 @@ struct binn* binn_from(struct binn *holder, struct binn_val value, bool *out_cas
   }
   buf = (const uint8_t*) value.buf;
   end = buf + value.size;
-  if (!parse_value(buf, end, &m) || !validate_value(buf, end, 0)) {
+  if (!parse_value(buf, end, &m)) {
+    errno = EINVAL;
+    return 0;
+  }
+  if (validate && m.storage == BINN_ST_CONTAINER && !validate_value(buf, end)) {
     errno = EINVAL;
     return 0;
   }
@@ -1043,6 +1011,14 @@ struct binn* binn_from(struct binn *holder, struct binn_val value, bool *out_cas
     }
   }
   return b;
+}
+
+struct binn* binn_from(struct binn *holder, struct binn_val value, bool *out_casted) {
+  return binn_from_impl(holder, value, out_casted, true);
+}
+
+struct binn* binn_from_unchecked(struct binn *holder, struct binn_val value, bool *out_casted) {
+  return binn_from_impl(holder, value, out_casted, false);
 }
 
 /// Creates an owning, construction mode copy of a serialized value.
@@ -1080,39 +1056,59 @@ static struct binn* copy_from_serialized(struct binn *holder, const uint8_t *buf
   return dst;
 }
 
+/// Creates an owning, construction mode copy of a `struct binn` without a serialize/parse round trip.
+static struct binn* copy_from_struct(struct binn *holder, const struct binn *v) {
+  struct binn *dst = alloc_holder(holder);
+  int storage = type_storage(v->type);
+  if (!dst) {
+    return 0;
+  }
+  dst->type = v->type;
+  dst->count = v->count;
+  dst->used = v->used;
+  if (type_is_container(v->type)) {
+    const uint8_t *src = (v->flags & BINN_FLG_WRAPPED_BINN)
+                         ? (const uint8_t*) v->wrapped.buf + (v->wrapped.size - v->used)
+                         : v->val.bval;
+    if (v->used) {
+      dst->val.bval = (uint8_t*) malloc(v->used);
+      if (!dst->val.bval) {
+        errno = ENOMEM;
+        free_holder(dst, holder);
+        return 0;
+      }
+      memcpy(dst->val.bval, src, v->used);
+      dst->allocated = v->used;
+    }
+    dst->size = container_serialized_size(dst);
+  } else if (storage == BINN_ST_STRING || storage == BINN_ST_BLOB) {
+    if (v->used) {
+      dst->val.bval = (uint8_t*) malloc(v->used);
+      if (!dst->val.bval) {
+        errno = ENOMEM;
+        free_holder(dst, holder);
+        return 0;
+      }
+      memcpy(dst->val.bval, v->val.bval, v->used);
+      dst->allocated = v->used;
+    }
+    dst->size = leaf_serialized_size(v->type, v->used);
+  } else {
+    dst->val.nval = v->val.nval;
+    dst->size = leaf_serialized_size(v->type, v->used);
+  }
+  return dst;
+}
+
 struct binn* binn_copy_from(struct binn *holder, struct binn_val value) {
   if (!value.buf || !value.size) {
     errno = EINVAL;
     return 0;
   }
   if (binn_is_struct_instance(value)) {
-    const struct binn *v = (const struct binn*) value.buf;
-    struct mem_sink mc;
-    struct binn_sink sink;
-    struct binn *r;
-    size_t total = value_serialized_size(v);
-    uint8_t *tmp;
-
-    tmp = (uint8_t*) malloc(total ? total : 1);
-    if (!tmp) {
-      errno = ENOMEM;
-      return 0;
-    }
-    mc.dst = tmp;
-    mc.cap = total;
-    mc.pos = 0;
-    sink.write = mem_sink_write;
-    sink.ctx = &mc;
-    if (!emit_value(&sink, v, 0) || mc.pos != total) {
-      free(tmp);
-      errno = EINVAL;
-      return 0;
-    }
-    r = copy_from_serialized(holder, tmp, total);
-    free(tmp);
-    return r;
+    return copy_from_struct(holder, (const struct binn*) value.buf);
   }
-  if (!validate_value((const uint8_t*) value.buf, (const uint8_t*) value.buf + value.size, 0)) {
+  if (!validate_value((const uint8_t*) value.buf, (const uint8_t*) value.buf + value.size)) {
     errno = EINVAL;
     return 0;
   }
@@ -1157,17 +1153,30 @@ bool binn_destroy(struct binn *binn) {
 /* ------------------------------------------------------------------ */
 
 bool binn_is_struct_instance(struct binn_val value) {
+  uint32_t magic;
+  binn_flags_t flags;
   if (!value.buf || value.size < sizeof(struct binn)) {
     return false;
   }
-  return *(const uint32_t*) value.buf == BINN_MAJIC_NUMBER;
+  // The buffer may be unaligned, so read the fields with memcpy().
+  memcpy(&magic, value.buf, sizeof(magic));
+  if (magic != BINN_MAJIC_NUMBER) {
+    return false;
+  }
+  // Reject flag combinations that cannot describe a live binn structure. This keeps a crafted
+  // serialized buffer that merely starts with the magic number from being mistaken for a struct.
+  memcpy(&flags, (const uint8_t*) value.buf + offsetof(struct binn, flags), sizeof(flags));
+  if ((flags & (binn_flags_t) ~(BINN_FLAGS_WRAPPED | BINN_FLG_STRUCT_ON_HEAP)) != 0) {
+    return false;
+  }
+  return true;
 }
 
 bool binn_is_serialized_buffer(struct binn_val value) {
   if (!value.buf || value.size == 0 || binn_is_struct_instance(value)) {
     return false;
   }
-  return validate_value((const uint8_t*) value.buf, (const uint8_t*) value.buf + value.size, 0);
+  return validate_value((const uint8_t*) value.buf, (const uint8_t*) value.buf + value.size);
 }
 
 bool binn_is_any(struct binn_val value) {
@@ -1411,21 +1420,12 @@ bool binn_indexed_get(const struct binn *binn, uint32_t nkey, struct binn *resul
 /* Public API: iteration                                              */
 /* ------------------------------------------------------------------ */
 
-/// Iterator internal state. Stored in `binn_iter::next`.
-struct binn_iter_ctx {
-  const uint8_t *cur;
-  const uint8_t *end;
-  uint32_t       remaining;
-  binn_type_t    ctype;
-};
-
 bool binn_iter_init(struct binn_val binn, struct binn_iter *iter) {
   const uint8_t *children;
   const uint8_t *cend;
   size_t clen;
   uint32_t count;
   binn_type_t ctype;
-  struct binn_iter_ctx *ctx;
 
   if (!binn.buf || !iter) {
     errno = EINVAL;
@@ -1460,42 +1460,34 @@ bool binn_iter_init(struct binn_val binn, struct binn_iter *iter) {
     count = m.count;
   }
   cend = clen ? children + clen : children;
-  ctx = (struct binn_iter_ctx*) malloc(sizeof(*ctx));
-  if (!ctx) {
-    errno = ENOMEM;
-    return false;
-  }
-  ctx->cur = children;
-  ctx->end = cend;
-  ctx->remaining = count;
-  ctx->ctype = ctype;
-  iter->next = ctx;
+  iter->state.next = children;
+  iter->state.end = cend;
+  iter->state.remaining = count;
+  iter->state.ctype = ctype;
   iter->exists = false;
   iter->key = 0;
   return true;
 }
 
 bool binn_iter_next(struct binn_iter *iter) {
-  struct binn_iter_ctx *ctx;
   const uint8_t *p;
   const uint8_t *end;
   const uint8_t *child;
   struct value_meta m;
   int subtype;
 
-  if (!iter || !iter->next) {
+  if (!iter || !iter->state.next) {
     return false;
   }
-  ctx = (struct binn_iter_ctx*) iter->next;
   iter->exists = false;
   iter->key = 0;
   iter->idx = -1;
-  if (ctx->remaining == 0) {
+  if (iter->state.remaining == 0) {
     return false;
   }
-  p = ctx->cur;
-  end = ctx->end;
-  subtype = type_subtype(ctx->ctype);
+  p = iter->state.next;
+  end = iter->state.end;
+  subtype = type_subtype(iter->state.ctype);
 
   if (subtype == BINN_SUBTYPE_MAP) { // map
     if ((size_t) (end - p) < 4) {
@@ -1523,8 +1515,8 @@ bool binn_iter_next(struct binn_iter *iter) {
     return false;
   }
   fill_wrapper(&iter->binn, child, &m);
-  ctx->cur = child + m.total;
-  ctx->remaining--;
+  iter->state.next = child + m.total;
+  iter->state.remaining--;
   iter->exists = true;
   return true;
 }
@@ -1533,8 +1525,9 @@ void binn_iter_close(struct binn_iter *iter) {
   if (!iter) {
     return;
   }
-  free(iter->next);
-  iter->next = 0;
+  iter->state.next = 0;
+  iter->state.end = 0;
+  iter->state.remaining = 0;
   iter->exists = false;
   iter->key = 0;
 }

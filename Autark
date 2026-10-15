@@ -21,6 +21,9 @@ meta {
 option { BINNC_BUILD_SHARED_LIBC  Build shared library }
 option { BINNC_BUILD_TESTS        Build test cases }
 option { BINNC_RUN_TESTS          Build and run test cases }
+option { BINNC_BUILD_PERF         Build performance benchmark }
+option { BINNC_BUILD_FUZZ         Build fuzzy testing harness }
+option { ENABLE_FUZZ              Instrument the library for libFuzzer coverage }
 option { ENABLE_ASAN              Turn on address sanitizer }
 option { ENABLE_UBSAN             Turn on UB sanitizer }
 option { ENABLE_DEBINFO           Generate debuginfo even in release mode }
@@ -61,6 +64,15 @@ set {
 }
 
 set {
+  FUZZ_COV_FLAGS
+  if { ${ENABLE_FUZZ}
+    if { contains { ${CC} clang }
+      -fsanitize=fuzzer-no-link
+    }
+  }
+}
+
+set {
   CFLAGS
   -std=gnu11
   -pedantic
@@ -78,6 +90,7 @@ set {
   -Wno-newline-eof
   -fPIC
   ..${SANITIZER_FLAGS}
+  ..${FUZZ_COV_FLAGS}
   if { prefix { ${BUILD_TYPE} Debug }
     -O0
     -ggdb
@@ -255,6 +268,14 @@ if { ${BINNC_BUILD_SHARED_LIBS}
 
 if { ${BINNC_BUILD_TESTS}
   include { t/Autark }
+}
+
+if { ${BINNC_BUILD_PERF}
+  include { perf/Autark }
+}
+
+if { ${BINNC_BUILD_FUZZ}
+  include { fuzz/Autark }
 }
 
 install { ${INSTALL_INCLUDE_DIR} ${PUB_HDRS} }

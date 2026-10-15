@@ -286,6 +286,16 @@ int main(int argc, char *argv[]) {
       BINN_ASSERT(!(cp->flags & BINN_FLAGS_WRAPPED));
       BINN_ASSERT(cp->count == obj->count);
       BINN_ASSERT(cp2->count == obj->count);
+      // The struct copy serializes identically to the source.
+      {
+        struct binn_val s1 = binn_serialize_allocated(obj);
+        struct binn_val s2 = binn_serialize_allocated(cp);
+        BINN_ASSERT(s1.buf != 0 && s2.buf != 0);
+        BINN_ASSERT(s1.size == s2.size);
+        BINN_ASSERT_MEM(s1.buf, s2.buf, s1.size);
+        free(s1.buf);
+        free(s2.buf);
+      }
       cv = make_u8(7);
       BINN_ASSERT(binn_add_keyed(cp, "added", *binnv(cv)));
       binn_destroy(cv);

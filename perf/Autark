@@ -1,0 +1,16 @@
+cc {
+  set { _
+    perf001.c
+   }
+  ${CFLAGS_TESTS}
+}
+
+foreach {
+  OBJ
+  ${CC_OBJS}
+  run {
+    exec { ${CC} ${OBJ} ${LDFLAGS_TEST} -o %{${OBJ}} }
+    consumes { ${LIBBINNC_A} ${OBJ} }
+    produces { %{${OBJ}} }
+  }
+}

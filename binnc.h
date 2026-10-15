@@ -192,6 +192,20 @@ struct binn* binn_create_value(struct binn *holder, const struct binn_create_spe
 /// @see binn::on_destroy
 struct binn* binn_from(struct binn *holder, struct binn_val value, bool *out_casted);
 
+/// @brief Creates a new binn value that wraps the given serialized binn `value` without validating it.
+///
+/// Behaves like `binn_from()` but skips the structural validation of the wrapped buffer. Only the root
+/// header is parsed; malformed children are detected lazily when the value is read. Use it only for
+/// buffers that are already known to be valid (for example, produced by `binn_serialize_*()`).
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param value Serialized binn value or a `struct binn` wrapper (see `binnv()`).
+/// @param out_casted Set to `true` if `value` was cast to `struct binn*` rather than wrapped.
+/// @return Pointer to the resulting binn value, or zero on error.
+///
+/// @see binn_from()
+struct binn* binn_from_unchecked(struct binn *holder, struct binn_val value, bool *out_casted);
+
 /// @brief Creates a new binn value by copying the given serialized binn `value` or binn structure.
 ///
 /// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
@@ -298,19 +312,27 @@ bool binn_add_mapped(struct binn *binn, int32_t idx, struct binn_val value);
 /// @return `false` on error.
 bool binn_add(struct binn *binn, struct binn_val value, int32_t *out_idx);
 
+/// Iterator internal state. Not intended for direct use.
+struct binn_iter_state {
+  const uint8_t *next;      ///< Pointer to the next child serialized element.
+  const uint8_t *end;       ///< End of the container children region.
+  uint32_t       remaining; ///< Number of children left to visit.
+  binn_type_t    ctype;     ///< Type of the container being iterated.
+};
+
 /// Binn iterator over all the children of a given container binn value.
 struct binn_iter {
-  struct binn binn;                  ///< Current binn object holder. Use only when `exists` is `true`.
-                                     ///  It is a shallow copy of a binn or serialized data element in
-                                     ///  `wrapper mode`.
-  const char *key;                   ///< Zero-terminated string key of the current object in the binn
-                                     ///  container, or zero if not applicable. A non-zero value normally
-                                     ///  points to `binn_iter::keybuf`.
-  int32_t idx;                       ///< Numeric key of the current binn object in a binn map, or `-1` if
-                                     ///  not applicable.
-  void *next;                        ///< Pointer to the next child binn object.
-  bool  exists;                      ///< `true` if the iterator points to a real binn object.
-  char  keybuf[BINN_KEY_MAXLEN + 1]; ///< Buffer holding the string key of the current binn object.
+  struct binn binn;                 ///< Current binn object holder. Use only when `exists` is `true`.
+                                    ///  It is a shallow copy of a binn or serialized data element in
+                                    ///  `wrapper mode`.
+  const char *key;                  ///< Zero-terminated string key of the current object in the binn
+                                    ///  container, or zero if not applicable. A non-zero value normally
+                                    ///  points to `binn_iter::keybuf`.
+  int32_t idx;                      ///< Numeric key of the current binn object in a binn map, or `-1` if
+                                    ///  not applicable.
+  struct binn_iter_state state;     ///< Internal iteration state. Not intended for direct use.
+  bool exists;                      ///< `true` if the iterator points to a real binn object.
+  char keybuf[BINN_KEY_MAXLEN + 1]; ///< Buffer holding the string key of the current binn object.
 };
 
 /// @brief Initializes an iterator over all of the children of given binn object.
@@ -330,6 +352,8 @@ bool binn_iter_init(struct binn_val binn, struct binn_iter *iter);
 bool binn_iter_next(struct binn_iter *iter);
 
 /// @brief Releases resources associated with a given iterator.
+///
+/// The iterator keeps all of its state inline, so this only resets the iterator.
 ///
 /// @param iter Iterator to close.
 void binn_iter_close(struct binn_iter *iter);
