@@ -78,6 +78,18 @@ static void check_text(const char *val, ssize_t vallen, size_t exp_used, const u
   binn_destroy(b);
 }
 
+static void check_blob(const void *val, ssize_t vallen, size_t exp_used, const uint8_t *exp, size_t len) {
+  struct binn *b = binn_create_blob(0, val, vallen);
+  BINN_ASSERT(b != 0);
+  if (!b) {
+    return;
+  }
+  BINN_ASSERT(b->type == BINN_TYPE_BLOB);
+  BINN_ASSERT(b->used == exp_used);
+  binn_test_check_bytes(b, exp, len);
+  binn_destroy(b);
+}
+
 int main(int argc, char *argv[]) {
   // Unsigned integer compression: UINT8 / UINT16 / UIN32 / UINT64.
   {
@@ -181,6 +193,21 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(binn_destroy(b) == false);
   }
 
+  // Null.
+  {
+    static const uint8_t e_null[] = { 0x00 };
+    struct binn holder;
+    struct binn *b = binn_create_null(0);
+    BINN_ASSERT(b != 0);
+    BINN_ASSERT(b->type == BINN_TYPE_NULL);
+    BINN_ASSERT(b->used == 0);
+    binn_test_check_bytes(b, e_null, sizeof(e_null));
+    binn_destroy(b);
+    b = binn_create_null(&holder);
+    BINN_ASSERT(b == &holder && b->type == BINN_TYPE_NULL);
+    BINN_ASSERT(binn_destroy(b) == false);
+  }
+
   // Text.
   {
     static const uint8_t e_hello[] = { 0xA0, 0x05, 'h', 'e', 'l', 'l', 'o', 0x00 };
@@ -209,6 +236,41 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(b->type == BINN_TYPE_TEXT);
     BINN_ASSERT(b->used == sizeof(big));
     BINN_ASSERT(b->size == 1 + 4 + sizeof(big) + 1);
+    binn_destroy(b);
+  }
+
+  // Blobs.
+  {
+    static const uint8_t e_bin[] = { 0xC0, 0x04, 0x00, 0x01, 0xFF, 0x00 };
+    static const uint8_t e_empty[] = { 0xC0, 0x00 };
+    static const uint8_t blob[] = { 0x00, 0x01, 0xFF, 0x00 }; // embedded null bytes
+    char pad[3] = { 'a', 'b', 'c' };
+    struct binn holder;
+    struct binn *b;
+    check_blob(blob, sizeof(blob), sizeof(blob), e_bin, sizeof(e_bin));
+    check_blob(0, 0, 0, e_empty, sizeof(e_empty));
+    check_blob(pad, 0, 0, e_empty, sizeof(e_empty));
+    BINN_ASSERT(binn_create_blob(0, pad, -1) == 0); // negative length
+    BINN_ASSERT(binn_create_blob(0, 0, 3) == 0);    // no data pointer
+
+    b = binn_create_blob(&holder, blob, sizeof(blob));
+    BINN_ASSERT(b == &holder && b->type == BINN_TYPE_BLOB);
+    BINN_ASSERT(binn_destroy(b) == false);
+  }
+
+  // A long blob uses a four byte size parameter.
+  {
+    uint8_t big[300];
+    struct binn *b;
+    size_t i;
+    for (i = 0; i < sizeof(big); i++) {
+      big[i] = (uint8_t) i;
+    }
+    b = binn_create_blob(0, big, (ssize_t) sizeof(big));
+    BINN_ASSERT(b != 0);
+    BINN_ASSERT(b->type == BINN_TYPE_BLOB);
+    BINN_ASSERT(b->used == sizeof(big));
+    BINN_ASSERT(b->size == 1 + 4 + sizeof(big));
     binn_destroy(b);
   }
 

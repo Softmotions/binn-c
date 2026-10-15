@@ -287,9 +287,12 @@ static struct binn* fuzz_build(int depth, const uint8_t *data, size_t size, size
         n = avail;
       }
       *pos += n;
-      return n ? fuzz_mk(BINN_TYPE_BLOB, p, n) : fuzz_mk(BINN_TYPE_BLOB, 0, 0);
+      return binn_create_blob(0, p, (ssize_t) n);
     }
     case 7:
+      if (sel & 2) {
+        return binn_create_null(0);
+      }
       return binn_create_bool(0, (sel & 1) != 0);
     case 8: {
       // list

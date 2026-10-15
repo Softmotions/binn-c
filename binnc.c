@@ -1111,6 +1111,10 @@ struct binn* binn_create_bool(struct binn *holder, bool val) {
   return create_numeric_value(holder, val ? BINN_TYPE_TRUE : BINN_TYPE_FALSE, 0);
 }
 
+struct binn* binn_create_null(struct binn *holder) {
+  return create_numeric_value(holder, BINN_TYPE_NULL, 0);
+}
+
 struct binn* binn_create_text(struct binn *holder, const char *val, ssize_t vallen) {
   struct binn_create_spec spec;
   memset(&spec, 0, sizeof(spec));
@@ -1129,6 +1133,26 @@ struct binn* binn_create_text(struct binn *holder, const char *val, ssize_t vall
     spec.value.size = (size_t) vallen;
   }
   // A non positive `vallen` yields an empty text value.
+  return binn_create_value(holder, &spec);
+}
+
+struct binn* binn_create_blob(struct binn *holder, const void *val, ssize_t vallen) {
+  struct binn_create_spec spec;
+  if (vallen < 0) {
+    errno = EINVAL;
+    return 0;
+  }
+  memset(&spec, 0, sizeof(spec));
+  spec.type = BINN_TYPE_BLOB;
+  if (vallen > 0) {
+    if (!val) {
+      errno = EINVAL;
+      return 0;
+    }
+    spec.value.buf = (void*) (uintptr_t) val;
+    spec.value.size = (size_t) vallen;
+  }
+  // A zero `vallen` yields an empty blob.
   return binn_create_value(holder, &spec);
 }
 

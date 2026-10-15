@@ -230,6 +230,14 @@ struct binn* binn_create_f64c(struct binn *holder, double val);
 /// @see binn_create_value()
 struct binn* binn_create_bool(struct binn *holder, bool val);
 
+/// @brief Creates a null scalar (`BINN_TYPE_NULL`).
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_null(struct binn *holder);
+
 /// @brief Creates a UTF-8 text scalar (`BINN_TYPE_TEXT`) holding `val`.
 ///
 /// `vallen` is the byte length of `val`, excluding the terminating null byte; the input does not have
@@ -245,6 +253,22 @@ struct binn* binn_create_bool(struct binn *holder, bool val);
 ///
 /// @see binn_create_value()
 struct binn* binn_create_text(struct binn *holder, const char *val, ssize_t vallen);
+
+/// @brief Creates a binary blob scalar (`BINN_TYPE_BLOB`) holding `vallen` bytes of `val`.
+///
+/// `vallen` is the exact payload length in bytes; the input may contain arbitrary binary data
+/// (including null bytes) and does not need to be null terminated. A zero `vallen` creates an empty
+/// blob, while a negative `vallen` is invalid for binary data and fails.
+///
+/// The blob is copied into the created value.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Blob data to store, or zero to create an empty blob.
+/// @param vallen Number of bytes to store; must not be negative.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_blob(struct binn *holder, const void *val, ssize_t vallen);
 
 /// @brief Creates a new binn value that wraps the given serialized binn `value`.
 ///
