@@ -13,7 +13,7 @@ The build system is [Autark](https://autark.dev):
 ./build.sh                                # static library
 ./build.sh -DBUILD_TYPE=Release           # optimized build
 ./build.sh -DBINNC_RUN_TESTS=1            # build and run the test suite
-./build.sh -DBINNC_BUILD_SHARED_LIBC=1    # also build the shared library
+./build.sh -DBINNC_BUILD_SHARED_LIBS=1    # also build the shared library
 ./build.sh -DBINNC_BUILD_PERF=1           # build the benchmark (autark-cache/perf/perf001)
 ./build.sh -DBINNC_BUILD_FUZZ=1 -DENABLE_ASAN=1 -DENABLE_UBSAN=1   # fuzz targets
 ./build.sh -I                             # install

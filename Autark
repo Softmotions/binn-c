@@ -19,7 +19,7 @@ meta {
   license { MIT }
 }
 
-option { BINNC_BUILD_SHARED_LIBC  Build shared library }
+option { BINNC_BUILD_SHARED_LIBS  Build shared libraries }
 option { BINNC_BUILD_TESTS        Build test cases }
 option { BINNC_RUN_TESTS          Build and run test cases }
 option { BINNC_BUILD_PERF         Build performance benchmark }
