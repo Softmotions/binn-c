@@ -130,9 +130,9 @@ int main(int argc, char *argv[]) {
     check_i64(INT32_MAX, BINN_TYPE_INT32, e_i32max, sizeof(e_i32max));
     check_i64(32768, BINN_TYPE_INT32, e_i32_32768, sizeof(e_i32_32768));
     check_i64(-32769, BINN_TYPE_INT32, e_i32_m32769, sizeof(e_i32_m32769));
-    check_i64(2147483648ll, BINN_TYPE_IN64, e_i64_2G, sizeof(e_i64_2G));
-    check_i64(INT64_MIN, BINN_TYPE_IN64, e_i64min, sizeof(e_i64min));
-    check_i64(INT64_MAX, BINN_TYPE_IN64, e_i64max, sizeof(e_i64max));
+    check_i64(2147483648ll, BINN_TYPE_INT64, e_i64_2G, sizeof(e_i64_2G));
+    check_i64(INT64_MIN, BINN_TYPE_INT64, e_i64min, sizeof(e_i64min));
+    check_i64(INT64_MAX, BINN_TYPE_INT64, e_i64max, sizeof(e_i64max));
   }
 
   // Single precision.

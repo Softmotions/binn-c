@@ -1083,7 +1083,7 @@ struct binn* binn_create_i64c(struct binn *holder, int64_t val) {
   } else if (val >= INT32_MIN && val <= INT32_MAX) {
     type = BINN_TYPE_INT32;
   } else {
-    type = BINN_TYPE_IN64;
+    type = BINN_TYPE_INT64;
   }
   return create_numeric_value(holder, type, (uint64_t) val);
 }

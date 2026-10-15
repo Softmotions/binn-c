@@ -64,7 +64,7 @@ static struct binn* make_obj(void) {
       }
       default: {
         int64_t x = -(int64_t) i;
-        v = mk(BINN_TYPE_IN64, &x, sizeof(x));
+        v = mk(BINN_TYPE_INT64, &x, sizeof(x));
         break;
       }
     }

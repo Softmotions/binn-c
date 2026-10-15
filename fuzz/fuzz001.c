@@ -454,7 +454,7 @@ static void build_corpus(void) {
   corpus_add(binn_create_object(0));
   corpus_add(fuzz_mk(BINN_TYPE_NULL, 0, 0));
   corpus_add(fuzz_mk(BINN_TYPE_UINT8, &small, sizeof(small)));
-  corpus_add(fuzz_mk(BINN_TYPE_IN64, &neg, sizeof(neg)));
+  corpus_add(fuzz_mk(BINN_TYPE_INT64, &neg, sizeof(neg)));
   corpus_add(fuzz_mk(BINN_TYPE_DOUBLE, &dbl, sizeof(dbl)));
   corpus_add(fuzz_mk(BINN_TYPE_TEXT, "hello world", 11));
   corpus_add(fuzz_mk(BINN_TYPE_BLOB, "\x00\x01\x02\x03", 4));

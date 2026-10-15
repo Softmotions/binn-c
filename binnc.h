@@ -48,7 +48,7 @@ typedef uint16_t binn_flags_t;
 #define BINN_TYPE_INT32    0x61 ///< Signed 32-bit integer.
 #define BINN_TYPE_FLOAT    0x62 ///< Single precision (32-bit) floating point number.
 #define BINN_TYPE_UINT64   0x80 ///< Unsigned 64-bit integer.
-#define BINN_TYPE_IN64     0x81 ///< Signed 64-bit integer.
+#define BINN_TYPE_INT64     0x81 ///< Signed 64-bit integer.
 #define BINN_TYPE_DOUBLE   0x82 ///< Double precision (64-bit) floating point number.
 #define BINN_TYPE_TEXT     0xA0 ///< UTF-8, null-terminated text string.
 #define BINN_TYPE_DATETIME 0xA1 ///< Date and time string.
@@ -191,7 +191,7 @@ struct binn* binn_create_u64c(struct binn *holder, uint64_t val);
 /// @brief Creates a signed integer scalar holding `val`, using automatic integer compression.
 ///
 /// The narrowest signed integer type able to represent `val` is selected, one of
-/// `BINN_TYPE_INT8`, `BINN_TYPE_INT16`, `BINN_TYPE_INT32` or `BINN_TYPE_IN64`.
+/// `BINN_TYPE_INT8`, `BINN_TYPE_INT16`, `BINN_TYPE_INT32` or `BINN_TYPE_INT64`.
 ///
 /// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
 /// @param val Value to store.
