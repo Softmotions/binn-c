@@ -78,28 +78,107 @@ static struct binn_val binn_val_of_struct(const void *b) {
 /* Big endian scalar helpers                                          */
 /* ------------------------------------------------------------------ */
 
-static uint32_t get_be32(const uint8_t *p) {
-  return ((uint32_t) p[0] << 24) | ((uint32_t) p[1] << 16) | ((uint32_t) p[2] << 8) | (uint32_t) p[3];
+// Host byte order. Prefer the compiler built-in, fall back to the build system probe.
+#if defined(__BYTE_ORDER__) && defined(__ORDER_BIG_ENDIAN__)
+#if __BYTE_ORDER__ == __ORDER_BIG_ENDIAN__
+#define BINNC_BIG_ENDIAN 1
+#else
+#define BINNC_BIG_ENDIAN 0
+#endif
+#elif defined(IW_BIGENDIAN)
+#define BINNC_BIG_ENDIAN 1
+#else
+#define BINNC_BIG_ENDIAN 0
+#endif
+
+// 16/32/64 bit byte swap. The fallback evaluates its argument more than once, so only pass values
+// without side effects.
+#if defined(__clang__) || (defined(__GNUC__) && ((__GNUC__ > 4) || (__GNUC__ == 4 && __GNUC_MINOR__ >= 8)))
+#define BINNC_BSWAP16(v__) ((uint16_t) __builtin_bswap16((uint16_t) (v__)))
+#define BINNC_BSWAP32(v__) ((uint32_t) __builtin_bswap32((uint32_t) (v__)))
+#define BINNC_BSWAP64(v__) ((uint64_t) __builtin_bswap64((uint64_t) (v__)))
+#elif defined(_MSC_VER)
+#define BINNC_BSWAP16(v__) ((uint16_t) _byteswap_ushort((unsigned short) (v__)))
+#define BINNC_BSWAP32(v__) ((uint32_t) _byteswap_ulong((unsigned long) (v__)))
+#define BINNC_BSWAP64(v__) ((uint64_t) _byteswap_uint64((unsigned __int64) (v__)))
+#else
+#define BINNC_BSWAP16(v__) ((uint16_t) ((((uint16_t) (v__) & 0x00FFu) << 8) | (((uint16_t) (v__) & 0xFF00u) >> 8)))
+#define BINNC_BSWAP32(v__) ((uint32_t) ((((uint32_t) (v__) & 0x000000FFu) << 24) | \
+                                        (((uint32_t) (v__) & 0x0000FF00u) << 8) |  \
+                                        (((uint32_t) (v__) & 0x00FF0000u) >> 8) |  \
+                                        (((uint32_t) (v__) & 0xFF000000u) >> 24)))
+#define BINNC_BSWAP64(v__) ((uint64_t) ((((uint64_t) BINNC_BSWAP32((uint32_t) (v__))) << 32) | \
+                                        (uint64_t) BINNC_BSWAP32((uint32_t) ((uint64_t) (v__) >> 32))))
+#endif
+
+// Converts a scalar between host and big endian order (the operation is its own inverse).
+#if BINNC_BIG_ENDIAN
+#define BINNC_HOST_TO_BE16(v__) ((uint16_t) (v__))
+#define BINNC_HOST_TO_BE32(v__) ((uint32_t) (v__))
+#define BINNC_HOST_TO_BE64(v__) ((uint64_t) (v__))
+#else
+#define BINNC_HOST_TO_BE16(v__) BINNC_BSWAP16(v__)
+#define BINNC_HOST_TO_BE32(v__) BINNC_BSWAP32(v__)
+#define BINNC_HOST_TO_BE64(v__) BINNC_BSWAP64(v__)
+#endif
+
+static inline uint32_t get_be32(const uint8_t *p) {
+  uint32_t v;
+  memcpy(&v, p, sizeof(v));
+  return BINNC_HOST_TO_BE32(v);
 }
 
-static void put_be32(uint8_t *p, uint32_t v) {
-  p[0] = (uint8_t) (v >> 24);
-  p[1] = (uint8_t) (v >> 16);
-  p[2] = (uint8_t) (v >> 8);
-  p[3] = (uint8_t) v;
+static inline void put_be32(uint8_t *p, uint32_t v) {
+  v = BINNC_HOST_TO_BE32(v);
+  memcpy(p, &v, sizeof(v));
 }
 
-static uint64_t get_scalar_be(const uint8_t *p, size_t n) {
-  uint64_t v = 0;
-  for (size_t i = 0; i < n; i++) {
-    v = (v << 8) | p[i];
+static inline uint64_t get_scalar_be(const uint8_t *p, size_t n) {
+  switch (n) {
+    case 1:
+      return p[0];
+    case 2: {
+      uint16_t v;
+      memcpy(&v, p, sizeof(v));
+      return BINNC_HOST_TO_BE16(v);
+    }
+    case 4: {
+      uint32_t v;
+      memcpy(&v, p, sizeof(v));
+      return BINNC_HOST_TO_BE32(v);
+    }
+    case 8: {
+      uint64_t v;
+      memcpy(&v, p, sizeof(v));
+      return BINNC_HOST_TO_BE64(v);
+    }
+    default:
+      return 0;
   }
-  return v;
 }
 
-static void put_scalar_be(uint8_t *p, uint64_t v, size_t n) {
-  for (size_t i = 0; i < n; i++) {
-    p[i] = (uint8_t) (v >> (8 * (n - 1 - i)));
+static inline void put_scalar_be(uint8_t *p, uint64_t v, size_t n) {
+  switch (n) {
+    case 1:
+      p[0] = (uint8_t) v;
+      return;
+    case 2: {
+      uint16_t x = BINNC_HOST_TO_BE16((uint16_t) v);
+      memcpy(p, &x, sizeof(x));
+      return;
+    }
+    case 4: {
+      uint32_t x = BINNC_HOST_TO_BE32((uint32_t) v);
+      memcpy(p, &x, sizeof(x));
+      return;
+    }
+    case 8: {
+      uint64_t x = BINNC_HOST_TO_BE64(v);
+      memcpy(p, &x, sizeof(x));
+      return;
+    }
+    default:
+      return;
   }
 }
 
