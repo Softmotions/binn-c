@@ -48,7 +48,7 @@ typedef uint16_t binn_flags_t;
 #define BINN_TYPE_INT32    0x61 ///< Signed 32-bit integer.
 #define BINN_TYPE_FLOAT    0x62 ///< Single precision (32-bit) floating point number.
 #define BINN_TYPE_UINT64   0x80 ///< Unsigned 64-bit integer.
-#define BINN_TYPE_INT64     0x81 ///< Signed 64-bit integer.
+#define BINN_TYPE_INT64    0x81 ///< Signed 64-bit integer.
 #define BINN_TYPE_DOUBLE   0x82 ///< Double precision (64-bit) floating point number.
 #define BINN_TYPE_TEXT     0xA0 ///< UTF-8, null-terminated text string.
 #define BINN_TYPE_DATETIME 0xA1 ///< Date and time string.
@@ -220,6 +220,15 @@ struct binn* binn_create_f32c(struct binn *holder, float val);
 ///
 /// @see binn_create_value()
 struct binn* binn_create_f64c(struct binn *holder, double val);
+
+/// @brief Creates a boolean scalar (`BINN_TYPE_TRUE` or `BINN_TYPE_FALSE`) holding `val`.
+///
+/// @param holder Optional storage for the created binn structure, or zero to allocate it on the heap.
+/// @param val Boolean value to store.
+/// @return Pointer to the created binn value, or zero on error with `errno` set accordingly.
+///
+/// @see binn_create_value()
+struct binn* binn_create_bool(struct binn *holder, bool val);
 
 /// @brief Creates a UTF-8 text scalar (`BINN_TYPE_TEXT`) holding `val`.
 ///

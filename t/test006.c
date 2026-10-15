@@ -159,6 +159,28 @@ int main(int argc, char *argv[]) {
     check_f64(-0.1, BINN_TYPE_DOUBLE, 0, 0);
   }
 
+  // Booleans.
+  {
+    static const uint8_t e_true[] = { 0x01 };
+    static const uint8_t e_false[] = { 0x02 };
+    struct binn holder;
+    struct binn *b = binn_create_bool(0, true);
+    BINN_ASSERT(b != 0);
+    BINN_ASSERT(b->type == BINN_TYPE_TRUE);
+    BINN_ASSERT(b->used == 0);
+    binn_test_check_bytes(b, e_true, sizeof(e_true));
+    binn_destroy(b);
+    b = binn_create_bool(0, false);
+    BINN_ASSERT(b != 0);
+    BINN_ASSERT(b->type == BINN_TYPE_FALSE);
+    BINN_ASSERT(b->used == 0);
+    binn_test_check_bytes(b, e_false, sizeof(e_false));
+    binn_destroy(b);
+    b = binn_create_bool(&holder, true);
+    BINN_ASSERT(b == &holder && b->type == BINN_TYPE_TRUE);
+    BINN_ASSERT(binn_destroy(b) == false);
+  }
+
   // Text.
   {
     static const uint8_t e_hello[] = { 0xA0, 0x05, 'h', 'e', 'l', 'l', 'o', 0x00 };

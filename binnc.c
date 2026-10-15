@@ -1107,6 +1107,10 @@ struct binn* binn_create_f64c(struct binn *holder, double val) {
   }
 }
 
+struct binn* binn_create_bool(struct binn *holder, bool val) {
+  return create_numeric_value(holder, val ? BINN_TYPE_TRUE : BINN_TYPE_FALSE, 0);
+}
+
 struct binn* binn_create_text(struct binn *holder, const char *val, ssize_t vallen) {
   struct binn_create_spec spec;
   memset(&spec, 0, sizeof(spec));
