@@ -5,8 +5,8 @@
 # Autark: aec5320de2e44ef5a0338f9ea990ed2a
 # https://github.com/Softmotions/autark
 
-META_VERSION=0.9.14-dev
-META_REVISION=2ef1296
+META_VERSION=0.9.14
+META_REVISION=90c5b30
 cd "$(cd "$(dirname "$0")"; pwd -P)"
 
 prev_arg=""
@@ -67,8 +67,8 @@ mkdir -p ${AUTARK_HOME}
 cat <<'a292effa503b' > ${AUTARK_HOME}/autark.c
 #ifndef CONFIG_H
 #define CONFIG_H
-#define META_VERSION "0.9.14-dev"
-#define META_REVISION "2ef1296"
+#define META_VERSION "0.9.14"
+#define META_REVISION "90c5b30"
 #define MACRO_MAX_RECURSIVE_CALLS 128
 #endif
 #define _AMALGAMATE_
@@ -2849,6 +2849,9 @@ int path_rm_cache(const char *path) {
   for (struct dirent *entry; (entry = readdir(dir)) != 0; ) {
     const char *name = entry->d_name;
     if (strcmp(name, ".") == 0 || strcmp(name, "..") == 0) {
+      continue;
+    }
+    if (strcmp(name, "compile_commands.json") == 0) { // Keep compile commands.
       continue;
     }
     snprintf(child, sizeof(child), "%s/%s", path, name);
