@@ -4,7 +4,7 @@ check {
 }
 
 meta {
-  name { binn-c }
+  name { binnc }
 
   version { ${CHANGELOG_VERSION} }
   version_major { ${CHANGELOG_VERSION_MAJOR} }
@@ -146,6 +146,11 @@ set {
 }
 
 set {
+   LDFLAGS_PKGCONF
+  ..${LDFLAGS_PKGCONF}
+}
+
+set {
   LDFLAGS_TEST
   ${LIBBINNC_A}
   ..${LDFLAGS}
@@ -169,6 +174,10 @@ set {
 
 configure {
   binnc_cfg.h.in
+}
+
+configure {
+  libbinnc.pc.in
 }
 
 cc {
@@ -280,6 +289,7 @@ if { ${BINNC_BUILD_FUZZ}
 }
 
 install { ${INSTALL_INCLUDE_DIR} ${PUB_HDRS} }
+install { ${INSTALL_PKGCONFIG_DIR} libbinnc.pc }
 
 install-sources {
   ^{${INSTALL_DATA_DIR} / ${META_NAME} / ${META_NAME} -sources- ${META_VERSION}}
@@ -299,6 +309,7 @@ install-sources {
   binnc.h
   binnc.c
   binnc_cfg.h.in
+  libbinnc.pc.in
 
   docs/
   t/
