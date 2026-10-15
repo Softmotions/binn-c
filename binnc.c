@@ -25,7 +25,7 @@
 /// rejected instead of being read out of bounds.
 
 #include "binnc.h"
-#include "binnc_cfg.h" // NOLINT(misc-include-cleaner): build configuration header
+#include "binnc_cfg.h" // IWYU pragma: keep
 
 #include <errno.h>
 #include <stdint.h>
@@ -114,26 +114,26 @@ static binn_type_t type_canonical(binn_type_t type) {
   return type;
 }
 
-static int type_storage(binn_type_t type) {
+static inline int type_storage(binn_type_t type) {
   if (type > 0xFF) {
     return (type >> 13) & 0x07;
   }
   return (type >> 5) & 0x07;
 }
 
-static int type_subtype(binn_type_t type) {
+static inline int type_subtype(binn_type_t type) {
   if (type > 0xFF) {
     return type & 0x0FFF;
   }
   return type & 0x0F;
 }
 
-static bool type_is_container(binn_type_t type) {
+static inline bool type_is_container(binn_type_t type) {
   return type_storage(type) == BINN_ST_CONTAINER;
 }
 
 /// Size in bytes of the encoded type parameter.
-static size_t type_encoded_size(binn_type_t type) {
+static inline size_t type_encoded_size(binn_type_t type) {
   return (type > 0xFF) ? 2u : 1u;
 }
 
@@ -154,7 +154,7 @@ static size_t storage_bytes(int storage) {
 }
 
 /// `true` if the type denotes a signed integer. All signed integers use the sub-type 1.
-static bool type_is_signed_int(binn_type_t type) {
+static inline bool type_is_signed_int(binn_type_t type) {
   int storage = type_storage(type);
   if (storage < BINN_ST_BYTE || storage > BINN_ST_QWORD) {
     return false;
@@ -875,6 +875,16 @@ static const uint8_t* map_find(const uint8_t *cp, const uint8_t *cend, int32_t i
     cp = np;
   }
   return 0;
+}
+
+
+void binnc_version_get(struct binnc_version *out_version) {
+  if (out_version) {
+    out_version->major = BINNC_VERSION_MAJOR;
+    out_version->minor = BINNC_VERSION_MINOR;
+    out_version->patch = BINNC_VERSION_PATCH;
+    out_version->revision = BINNC_REVISION;
+  }
 }
 
 /* ------------------------------------------------------------------ */

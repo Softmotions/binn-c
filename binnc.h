@@ -79,6 +79,10 @@ typedef uint16_t binn_flags_t;
 /// Bitmask of all wrapped modes.
 #define BINN_FLAGS_WRAPPED (BINN_FLG_WRAPPED_BINN | BINN_FLG_WRAPPED_PAYLOAD)
 
+/// Builds a `struct binn_val` for a typed pointer. `binnv(ptr)` yields a `struct binn_val*`, so it is
+/// normally dereferenced when passed by value: `binn_add(list, *binnv(value), 0)`.
+#define binnv(binnptr__) & (struct binn_val) { .buf = (binnptr__), .size = sizeof(*(binnptr__)) }
+
 /// Bounded reference to a buffer holding either a serialized binn value or a `struct binn`.
 ///
 /// Carrying the buffer size alongside the pointer lets the library validate every access and reject
@@ -87,10 +91,6 @@ struct binn_val {
   void  *buf;  ///< Buffer pointer. Zero means `no value`.
   size_t size; ///< Size of the buffer in bytes.
 };
-
-/// Builds a `struct binn_val` for a typed pointer. `binnv(ptr)` yields a `struct binn_val*`, so it is
-/// normally dereferenced when passed by value: `binn_add(list, *binnv(value), 0)`.
-#define binnv(binnptr__) & (struct binn_val) { .buf = (binnptr__), .size = sizeof(*(binnptr__)) }
 
 /// @brief Binn value.
 ///
@@ -151,6 +151,17 @@ struct binn_create_spec {
   struct binn_val value;
   void (*on_destroy)(struct binn*); ///< Optional callback invoked when the binn object is destroyed.
 };
+
+/// @brief Binn library version information.
+struct binnc_version {
+  int major;
+  int minor;
+  int patch;
+  const char *revision;
+};
+
+/// @brief Get a binn library version.
+void binnc_version_get(struct binnc_version *out_version);
 
 /// @brief Creates a binn value using an optional `holder` (usually allocated on the stack).
 ///
