@@ -144,7 +144,7 @@ static inline size_t type_encoded_size(binn_type_t type) {
 }
 
 /// Payload size in bytes of the given storage class (0 for NOBYTES/STRING/BLOB/CONTAINER).
-static size_t storage_bytes(int storage) {
+static inline size_t storage_bytes(int storage) {
   switch (storage) {
     case BINN_ST_BYTE:
       return 1;
@@ -244,7 +244,7 @@ static size_t put_size_param(uint8_t *out, size_t n) {
 }
 
 /// Size in bytes of a serialized scalar (numeric/nobytes) value.
-static size_t leaf_serialized_size(binn_type_t type, size_t payload_len) {
+static inline size_t leaf_serialized_size(binn_type_t type, size_t payload_len) {
   int storage = type_storage(type);
   size_t n = type_encoded_size(type);
   if (storage == BINN_ST_STRING || storage == BINN_ST_BLOB) {
@@ -557,7 +557,7 @@ static bool stream_sink_write(void *ctx, const uint8_t *data, size_t len) {
 /* ------------------------------------------------------------------ */
 
 /// Total serialized size of a construction mode container (header + children).
-static size_t container_serialized_size(const struct binn *b) {
+static inline size_t container_serialized_size(const struct binn *b) {
   size_t content = b->used;
   size_t count_sz = size_param_size(b->count);
   size_t total = 1 + 1 + count_sz + content;
