@@ -157,6 +157,7 @@ struct binnc_version {
   int major;
   int minor;
   int patch;
+  const char *flavor;
   const char *revision;
 };
 

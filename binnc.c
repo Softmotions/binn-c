@@ -931,6 +931,7 @@ void binnc_version_get(struct binnc_version *out_version) {
     out_version->major = BINNC_VERSION_MAJOR;
     out_version->minor = BINNC_VERSION_MINOR;
     out_version->patch = BINNC_VERSION_PATCH;
+    out_version->flavor = BINNC_VERSION_FLAVOR;
     out_version->revision = BINNC_REVISION;
   }
 }

@@ -10,6 +10,7 @@ meta {
   version_major { ${CHANGELOG_VERSION_MAJOR} }
   version_minor { ${CHANGELOG_VERSION_MINOR} }
   version_patch { ${CHANGELOG_VERSION_PATCH} }
+  version_flavor { ${CHANGELOG_VERSION_FLAVOR} }
 
   description { Lighweight C implementation of BINN data serialization format. }
   website { https//github.com/Softmotions/binn-c }
@@ -279,3 +280,23 @@ if { ${BINNC_BUILD_FUZZ}
 }
 
 install { ${INSTALL_INCLUDE_DIR} ${PUB_HDRS} }
+
+install-sources {
+  ^{${INSTALL_DATA_DIR} / ${META_NAME} / ${META_NAME} -sources- ${META_VERSION}}
+  .autark/
+  .clang-tidy
+  .editorconfig
+  .gitignore
+  .ignore
+  .lvimrc
+  Autark
+  Changelog
+  LICENSE
+  README.md
+  build.sh
+  uncrustify.cfg
+  
+  binnc.h
+  binnc.c
+  binnc_cfg.h.in
+}
