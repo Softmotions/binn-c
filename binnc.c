@@ -50,6 +50,10 @@ enum {
   BINN_FLG_HAS_MORE = 0x10, ///< The type is encoded using two bytes.
 };
 
+#define BINN_SUBTYPE_LIST   0
+#define BINN_SUBTYPE_MAP    1
+#define BINN_SUBTYPE_OBJECT 2
+
 /* ------------------------------------------------------------------ */
 /* Bounded buffer reference helpers                                   */
 /* ------------------------------------------------------------------ */
@@ -396,12 +400,12 @@ static bool validate_children(const uint8_t *cp, const uint8_t *cend, binn_type_
   while (cp < cend) {
     struct value_meta cm;
     const uint8_t *np;
-    if (subtype == 1) { // map key: 4 bytes big endian
+    if (subtype == BINN_SUBTYPE_MAP) { // map key: 4 bytes big endian
       if ((size_t) (cend - cp) < 4) {
         return false;
       }
       cp += 4;
-    } else if (subtype == 2) { // object key: 1 byte length + bytes
+    } else if (subtype == BINN_SUBTYPE_OBJECT) { // object key: 1 byte length + bytes
       uint8_t klen;
       if (cp >= cend) {
         return false;
@@ -471,12 +475,12 @@ static int serialized_depth_limit(const uint8_t *p, const uint8_t *end, int limi
   while (cp < cend) {
     struct value_meta cm;
     const uint8_t *np;
-    if (subtype == 1) {
+    if (subtype == BINN_SUBTYPE_MAP) {
       if ((size_t) (cend - cp) < 4) {
         return -1;
       }
       cp += 4;
-    } else if (subtype == 2) {
+    } else if (subtype == BINN_SUBTYPE_OBJECT) {
       uint8_t klen;
       if (cp >= cend) {
         return -1;
@@ -877,7 +881,6 @@ static const uint8_t* map_find(const uint8_t *cp, const uint8_t *cend, int32_t i
   return 0;
 }
 
-
 void binnc_version_get(struct binnc_version *out_version) {
   if (out_version) {
     out_version->major = BINNC_VERSION_MAJOR;
@@ -1262,7 +1265,7 @@ bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
     errno = EINVAL;
     return false;
   }
-  if (!type_is_container(binn->type) || type_subtype(binn->type) != 2) {
+  if (!type_is_container(binn->type) || type_subtype(binn->type) != BINN_SUBTYPE_OBJECT) {
     errno = EINVAL;
     return false;
   }
@@ -1299,7 +1302,7 @@ bool binn_add_mapped(struct binn *binn, int32_t idx, struct binn_val value) {
     errno = EINVAL;
     return false;
   }
-  if (!type_is_container(binn->type) || type_subtype(binn->type) != 1) {
+  if (!type_is_container(binn->type) || type_subtype(binn->type) != BINN_SUBTYPE_MAP) {
     errno = EINVAL;
     return false;
   }
@@ -1323,7 +1326,7 @@ bool binn_add(struct binn *binn, struct binn_val value, int32_t *out_idx) {
     errno = EINVAL;
     return false;
   }
-  if (!type_is_container(binn->type) || type_subtype(binn->type) != 0) {
+  if (!type_is_container(binn->type) || type_subtype(binn->type) != BINN_SUBTYPE_LIST) {
     errno = EINVAL;
     return false;
   }
@@ -1353,7 +1356,7 @@ bool binn_keyed_get(const struct binn *binn, const char *key, struct binn *resul
     errno = EINVAL;
     return false;
   }
-  if (!type_is_container(binn->type) || type_subtype(binn->type) != 2) {
+  if (!type_is_container(binn->type) || type_subtype(binn->type) != BINN_SUBTYPE_OBJECT) {
     errno = EINVAL;
     return false;
   }
@@ -1414,7 +1417,7 @@ bool binn_indexed_get(const struct binn *binn, uint32_t nkey, struct binn *resul
     }
     return false;
   }
-  if (subtype == 1) { // map: numeric id
+  if (subtype == BINN_SUBTYPE_MAP) { // map: numeric id
     const uint8_t *found = map_find(cp, cend, (int32_t) nkey);
     if (!found) {
       return false;
@@ -1520,13 +1523,13 @@ bool binn_iter_next(struct binn_iter *iter) {
   end = ctx->end;
   subtype = type_subtype(ctx->ctype);
 
-  if (subtype == 1) { // map
+  if (subtype == BINN_SUBTYPE_MAP) { // map
     if ((size_t) (end - p) < 4) {
       return false;
     }
     iter->idx = (int32_t) get_be32(p);
     p += 4;
-  } else if (subtype == 2) { // object
+  } else if (subtype == BINN_SUBTYPE_OBJECT) { // object
     uint8_t klen;
     if (p >= end) {
       return false;
