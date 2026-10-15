@@ -299,4 +299,9 @@ install-sources {
   binnc.h
   binnc.c
   binnc_cfg.h.in
+
+  docs/
+  t/
+  fuzz/
+  perf/
 }
