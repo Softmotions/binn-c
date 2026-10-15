@@ -62,7 +62,7 @@ int main(int argc, char *argv[]) {
     check_scalar(BINN_TYPE_INT8, &i8, sizeof(i8), e_i8, sizeof(e_i8));
     check_scalar(BINN_TYPE_UINT16, &u16, sizeof(u16), e_u16, sizeof(e_u16));
     check_scalar(BINN_TYPE_INT16, &i16, sizeof(i16), e_i16, sizeof(e_i16));
-    check_scalar(BINN_TYPE_UIN32, &u32, sizeof(u32), e_u32, sizeof(e_u32));
+    check_scalar(BINN_TYPE_UINT32, &u32, sizeof(u32), e_u32, sizeof(e_u32));
     check_scalar(BINN_TYPE_INT32, &i32, sizeof(i32), e_i32, sizeof(e_i32));
     check_scalar(BINN_TYPE_UINT64, &u64, sizeof(u64), e_u64, sizeof(e_u64));
     check_scalar(BINN_TYPE_INT64, &i64, sizeof(i64), e_i64, sizeof(e_i64));

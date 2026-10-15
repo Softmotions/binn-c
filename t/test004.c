@@ -146,7 +146,7 @@ int main(int argc, char *argv[]) {
     uint32_t v = 1;
     struct binn_create_spec spec;
     memset(&spec, 0, sizeof(spec));
-    spec.type = BINN_TYPE_UIN32;
+    spec.type = BINN_TYPE_UINT32;
     spec.value = bv(&v, 2); // smaller than the DWORD storage
     BINN_ASSERT(binn_create_value(0, &spec) == 0);
 

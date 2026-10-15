@@ -28,7 +28,7 @@ The build system is [Autark](https://autark.dev):
 
 // {"answer": 42}
 uint32_t answer = 42;
-struct binn_create_spec spec = { .type = BINN_TYPE_UIN32, .value = *binnv(&answer) };
+struct binn_create_spec spec = { .type = BINN_TYPE_UINT32, .value = *binnv(&answer) };
 struct binn *v = binn_create_value(0, &spec);
 
 struct binn *obj = binn_create_object(0);

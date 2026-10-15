@@ -106,8 +106,8 @@ int main(int argc, char *argv[]) {
     check_u64(0xFF, BINN_TYPE_UINT8, e_u8max, sizeof(e_u8max));
     check_u64(0x100, BINN_TYPE_UINT16, e_u16_1, sizeof(e_u16_1));
     check_u64(0xFFFF, BINN_TYPE_UINT16, e_u16max, sizeof(e_u16max));
-    check_u64(0x10000, BINN_TYPE_UIN32, e_u32_1, sizeof(e_u32_1));
-    check_u64(0xFFFFFFFFull, BINN_TYPE_UIN32, e_u32max, sizeof(e_u32max));
+    check_u64(0x10000, BINN_TYPE_UINT32, e_u32_1, sizeof(e_u32_1));
+    check_u64(0xFFFFFFFFull, BINN_TYPE_UINT32, e_u32max, sizeof(e_u32max));
     check_u64(0x100000000ull, BINN_TYPE_UINT64, e_u64_1, sizeof(e_u64_1));
     check_u64(0x1226652FEull, BINN_TYPE_UINT64, e_u64_yours, sizeof(e_u64_yours));
     check_u64(UINT64_MAX, BINN_TYPE_UINT64, e_u64max, sizeof(e_u64max));

@@ -1067,7 +1067,7 @@ struct binn* binn_create_u64c(struct binn *holder, uint64_t val) {
   } else if (val <= UINT16_MAX) {
     type = BINN_TYPE_UINT16;
   } else if (val <= UINT32_MAX) {
-    type = BINN_TYPE_UIN32;
+    type = BINN_TYPE_UINT32;
   } else {
     type = BINN_TYPE_UINT64;
   }

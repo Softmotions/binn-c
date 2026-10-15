@@ -48,7 +48,7 @@ static struct binn* make_obj(void) {
     switch (i % 4) {
       case 0: {
         uint32_t x = (uint32_t) i;
-        v = mk(BINN_TYPE_UIN32, &x, sizeof(x));
+        v = mk(BINN_TYPE_UINT32, &x, sizeof(x));
         break;
       }
       case 1: {
@@ -79,7 +79,7 @@ static struct binn* make_list(void) {
   int i;
   for (i = 0; i < LIST_ITEMS; i++) {
     uint32_t x = (uint32_t) i;
-    struct binn *v = mk(BINN_TYPE_UIN32, &x, sizeof(x));
+    struct binn *v = mk(BINN_TYPE_UINT32, &x, sizeof(x));
     binn_add(l, *binnv(v), 0);
     binn_destroy(v);
   }
