@@ -50,9 +50,11 @@ enum {
   BINN_FLG_HAS_MORE = 0x10, ///< The type is encoded using two bytes.
 };
 
-#define BINN_SUBTYPE_LIST   0
-#define BINN_SUBTYPE_MAP    1
-#define BINN_SUBTYPE_OBJECT 2
+enum {
+  BINN_SUBTYPE_LIST   = 0,
+  BINN_SUBTYPE_MAP    = 1,
+  BINN_SUBTYPE_OBJECT = 2,
+};
 
 /* ------------------------------------------------------------------ */
 /* Bounded buffer reference helpers                                   */
@@ -1256,10 +1258,6 @@ struct binn_val binn_serialize_into(const struct binn *binn, uint8_t *buffer, si
 bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
   uint8_t prefix[BINN_KEY_MAXLEN + 1];
   size_t keylen;
-  const uint8_t *found;
-  const uint8_t *cp;
-  size_t clen;
-  uint32_t count;
 
   if (!binn || !key || !value.buf) {
     errno = EINVAL;
@@ -1274,16 +1272,6 @@ bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
     errno = EINVAL;
     return false;
   }
-  cp = container_children(binn, &clen, &count);
-  if (!cp && clen) {
-    errno = EINVAL;
-    return false;
-  }
-  found = object_find(cp, cp ? cp + clen : 0, key, keylen);
-  if (found) {
-    errno = EEXIST;
-    return false;
-  }
   prefix[0] = (uint8_t) keylen;
   if (keylen) {
     memcpy(prefix + 1, key, keylen);
@@ -1293,10 +1281,6 @@ bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
 
 bool binn_add_mapped(struct binn *binn, int32_t idx, struct binn_val value) {
   uint8_t prefix[4];
-  const uint8_t *found;
-  const uint8_t *cp;
-  size_t clen;
-  uint32_t count;
 
   if (!binn || !value.buf) {
     errno = EINVAL;
@@ -1304,16 +1288,6 @@ bool binn_add_mapped(struct binn *binn, int32_t idx, struct binn_val value) {
   }
   if (!type_is_container(binn->type) || type_subtype(binn->type) != BINN_SUBTYPE_MAP) {
     errno = EINVAL;
-    return false;
-  }
-  cp = container_children(binn, &clen, &count);
-  if (!cp && clen) {
-    errno = EINVAL;
-    return false;
-  }
-  found = map_find(cp, cp ? cp + clen : 0, idx);
-  if (found) {
-    errno = EEXIST;
     return false;
   }
   put_be32(prefix, (uint32_t) idx);

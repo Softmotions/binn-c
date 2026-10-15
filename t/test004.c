@@ -69,21 +69,55 @@ int main(int argc, char *argv[]) {
     binn_destroy(obj);
   }
 
-  // Duplicate keys and indexes, oversized keys.
+  // Duplicate keys/indexes are appended, oversized keys are rejected.
   {
     struct binn *map = binn_create_map(0);
     struct binn *obj = binn_create_object(0);
-    struct binn *v = make_u8(1);
+    struct binn *v1 = make_u8(1);
+    struct binn *v2 = make_u8(2);
+    struct binn found;
     char bigkey[BINN_KEY_MAXLEN + 40];
     memset(bigkey, 'k', sizeof(bigkey) - 1);
     bigkey[sizeof(bigkey) - 1] = 0;
 
-    BINN_ASSERT(binn_add_mapped(map, 10, *binnv(v)));
-    BINN_ASSERT(!binn_add_mapped(map, 10, *binnv(v)));
-    BINN_ASSERT(binn_add_keyed(obj, "k", *binnv(v)));
-    BINN_ASSERT(!binn_add_keyed(obj, "k", *binnv(v)));
-    BINN_ASSERT(!binn_add_keyed(obj, bigkey, *binnv(v)));
-    binn_destroy(v);
+    BINN_ASSERT(binn_add_mapped(map, 10, *binnv(v1)));
+    BINN_ASSERT(binn_add_mapped(map, 10, *binnv(v2)));
+    BINN_ASSERT(map->count == 2);
+    BINN_ASSERT(binn_indexed_get(map, 10, &found));
+    BINN_ASSERT(found.val.nval == 1); // the first occurrence wins
+
+    BINN_ASSERT(binn_add_keyed(obj, "k", *binnv(v1)));
+    BINN_ASSERT(binn_add_keyed(obj, "k", *binnv(v2)));
+    BINN_ASSERT(obj->count == 2);
+    BINN_ASSERT(binn_keyed_get(obj, "k", &found));
+    BINN_ASSERT(found.val.nval == 1); // the first occurrence wins
+
+    BINN_ASSERT(!binn_add_keyed(obj, bigkey, *binnv(v1)));
+    BINN_ASSERT(obj->count == 2);
+
+    // Duplicates survive a serialization round trip.
+    {
+      struct binn_val sb = binn_serialize_allocated(map);
+      struct binn holder;
+      struct binn *w;
+      struct binn_iter it;
+      bool casted = true;
+      int n = 0;
+      BINN_ASSERT(sb.buf != 0);
+      w = binn_from(&holder, sb, &casted);
+      BINN_ASSERT(w != 0 && casted == false);
+      BINN_ASSERT(w->count == 2);
+      BINN_ASSERT(binn_iter_init(*binnv(w), &it));
+      while (binn_iter_next(&it)) {
+        n++;
+      }
+      BINN_ASSERT(n == 2);
+      binn_iter_close(&it);
+      BINN_ASSERT(binn_destroy(w) == false);
+      free(sb.buf);
+    }
+    binn_destroy(v1);
+    binn_destroy(v2);
     binn_destroy(map);
     binn_destroy(obj);
   }
