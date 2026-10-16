@@ -1887,3 +1887,55 @@ bool binn_bool_get(const struct binn *binn) {
   }
   return binn->type == BINN_TYPE_TRUE;
 }
+
+bool binn_is_int_number(const struct binn *binn) {
+  return binn && type_is_integer_scalar(binn->type);
+}
+
+bool binn_is_fp_number(const struct binn *binn) {
+  return binn && (type_is_f32(binn->type) || type_is_f64(binn->type));
+}
+
+bool binn_is_text(const struct binn *binn) {
+  return binn && type_storage(binn->type) == BINN_ST_STRING;
+}
+
+bool binn_is_blob(const struct binn *binn) {
+  return binn && type_storage(binn->type) == BINN_ST_BLOB;
+}
+
+bool binn_is_boolean(const struct binn *binn) {
+  return binn && (binn->type == BINN_TYPE_TRUE || binn->type == BINN_TYPE_FALSE);
+}
+
+bool binn_is_object(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_OBJECT;
+}
+
+bool binn_is_list(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_LIST;
+}
+
+bool binn_is_map(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_MAP;
+}
+
+bool binn_is_null(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_NULL;
+}
+
+bool binn_is_decimal(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_DECIMAL;
+}
+
+bool binn_is_datetime(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_DATETIME;
+}
+
+bool binn_is_date(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_DATE;
+}
+
+bool binn_is_time(const struct binn *binn) {
+  return binn && binn->type == BINN_TYPE_TIME;
+}

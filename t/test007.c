@@ -285,5 +285,71 @@ int main(int argc, char *argv[]) {
     binn_destroy(obj);
   }
 
+  // Type predicates.
+  {
+    struct binn *b;
+    b = binn_create_u64c(0, 1);
+    BINN_ASSERT(binn_is_int_number(b) && !binn_is_fp_number(b) && !binn_is_text(b) && !binn_is_blob(b));
+    binn_destroy(b);
+    b = binn_create_i64c(0, -1);
+    BINN_ASSERT(binn_is_int_number(b) && !binn_is_fp_number(b));
+    binn_destroy(b);
+    b = binn_create_f32c(0, 1.0f);
+    BINN_ASSERT(!binn_is_int_number(b) && binn_is_fp_number(b));
+    binn_destroy(b);
+    b = binn_create_f64c(0, 1.0);
+    BINN_ASSERT(!binn_is_int_number(b) && binn_is_fp_number(b));
+    binn_destroy(b);
+
+    b = binn_create_text(0, "t", -1);
+    BINN_ASSERT(binn_is_text(b) && !binn_is_blob(b));
+    binn_destroy(b);
+    b = mk(BINN_TYPE_DATETIME, "2026-10-15 00:00:00", 19);
+    BINN_ASSERT(binn_is_text(b) && binn_is_datetime(b));
+    BINN_ASSERT(!binn_is_date(b) && !binn_is_time(b) && !binn_is_decimal(b));
+    binn_destroy(b);
+    b = mk(BINN_TYPE_DATE, "2026-10-15", 10);
+    BINN_ASSERT(binn_is_text(b) && binn_is_date(b) && !binn_is_datetime(b));
+    binn_destroy(b);
+    b = mk(BINN_TYPE_TIME, "00:00:00", 8);
+    BINN_ASSERT(binn_is_text(b) && binn_is_time(b) && !binn_is_datetime(b));
+    binn_destroy(b);
+    b = mk(BINN_TYPE_DECIMAL, "1.5", 3);
+    BINN_ASSERT(binn_is_text(b) && binn_is_decimal(b) && !binn_is_datetime(b));
+    binn_destroy(b);
+
+    {
+      uint8_t bytes[2] = { 0, 1 };
+      b = binn_create_blob(0, bytes, sizeof(bytes));
+      BINN_ASSERT(binn_is_blob(b) && !binn_is_text(b));
+      binn_destroy(b);
+    }
+
+    b = binn_create_bool(0, true);
+    BINN_ASSERT(binn_is_boolean(b) && !binn_is_null(b));
+    binn_destroy(b);
+    b = binn_create_bool(0, false);
+    BINN_ASSERT(binn_is_boolean(b));
+    binn_destroy(b);
+    b = binn_create_null(0);
+    BINN_ASSERT(binn_is_null(b) && !binn_is_boolean(b));
+    binn_destroy(b);
+
+    b = binn_create_list(0);
+    BINN_ASSERT(binn_is_list(b) && !binn_is_map(b) && !binn_is_object(b));
+    binn_destroy(b);
+    b = binn_create_map(0);
+    BINN_ASSERT(binn_is_map(b) && !binn_is_list(b) && !binn_is_object(b));
+    binn_destroy(b);
+    b = binn_create_object(0);
+    BINN_ASSERT(binn_is_object(b) && !binn_is_list(b) && !binn_is_map(b));
+    binn_destroy(b);
+
+    BINN_ASSERT(!binn_is_int_number(0) && !binn_is_fp_number(0) && !binn_is_text(0) && !binn_is_blob(0));
+    BINN_ASSERT(!binn_is_boolean(0) && !binn_is_null(0));
+    BINN_ASSERT(!binn_is_list(0) && !binn_is_map(0) && !binn_is_object(0));
+    BINN_ASSERT(!binn_is_datetime(0) && !binn_is_date(0) && !binn_is_time(0) && !binn_is_decimal(0));
+  }
+
   return binn_assertions_failed > 0 ? 1 : 0;
 }

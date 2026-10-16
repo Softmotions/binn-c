@@ -113,7 +113,7 @@ struct binn {
   uint32_t magic;     ///< Magic number (`BINN_MAJIC_NUMBER`) used to distinguish a binn structure from a
                       ///  serialized binn buffer.
   uint16_t    flags;  ///< Bitmask of `BINN_FLG_*` flags.
-  binn_type_t type;   ///< Binn object type, one of the `BINN_TYPE_*` constants.
+  binn_type_t type;   ///< Binn object type.
   uint32_t    count;  ///< Number of elements in the binn container.
                       ///  This value is iteratively updated in construction mode.
   size_t size;        ///< Size of the serialized binn object in bytes.
@@ -547,5 +547,86 @@ double binn_f64_get(const struct binn *binn);
 /// @return `true` for `BINN_TYPE_TRUE`, `false` otherwise (including `BINN_TYPE_FALSE` and any
 ///     non-applicable type).
 bool binn_bool_get(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds an integer scalar (signed or unsigned).
+///
+/// @param binn Source binn value.
+/// @return `true` for any integer scalar, `false` otherwise.
+bool binn_is_int_number(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a floating point scalar.
+///
+/// @param binn Source binn value.
+/// @return `true` for `BINN_TYPE_FLOAT` and `BINN_TYPE_DOUBLE`, `false` otherwise.
+bool binn_is_fp_number(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a text value.
+///
+/// Applicable to any string storage, including `BINN_TYPE_DATETIME`, `BINN_TYPE_DATE`, `BINN_TYPE_TIME`
+/// and `BINN_TYPE_DECIMAL`. Such values are readable with `binn_text_get()`.
+///
+/// @param binn Source binn value.
+/// @return `true` for any string value, `false` otherwise.
+bool binn_is_text(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a binary blob value.
+///
+/// @param binn Source binn value.
+/// @return `true` for any blob value, `false` otherwise.
+bool binn_is_blob(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a boolean value.
+///
+/// @param binn Source binn value.
+/// @return `true` for `BINN_TYPE_TRUE` and `BINN_TYPE_FALSE`, `false` otherwise.
+bool binn_is_boolean(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds an object container (`BINN_TYPE_OBJECT`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is an object, `false` otherwise.
+bool binn_is_object(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a list container (`BINN_TYPE_LIST`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is a list, `false` otherwise.
+bool binn_is_list(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a map container (`BINN_TYPE_MAP`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is a map, `false` otherwise.
+bool binn_is_map(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a null value (`BINN_TYPE_NULL`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is null, `false` otherwise.
+bool binn_is_null(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a decimal string (`BINN_TYPE_DECIMAL`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is a decimal, `false` otherwise.
+bool binn_is_decimal(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a date and time string (`BINN_TYPE_DATETIME`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is a date and time value, `false` otherwise.
+bool binn_is_datetime(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a date string (`BINN_TYPE_DATE`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is a date value, `false` otherwise.
+bool binn_is_date(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` holds a time string (`BINN_TYPE_TIME`).
+///
+/// @param binn Source binn value.
+/// @return `true` if `binn` is a time value, `false` otherwise.
+bool binn_is_time(const struct binn *binn);
 
 #endif
