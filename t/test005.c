@@ -187,11 +187,14 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(w != 0 && casted == false);
     BINN_ASSERT(w->type == BINN_TYPE_TEXT);
     BINN_ASSERT(w->used == 2 && memcmp(w->val.bval, "hi", 2) == 0);
+    // `size` is canonical even if the input used a four byte size parameter.
+    BINN_ASSERT(w->size == 5 && w->size == binn_serialized_size(w));
     BINN_ASSERT(binn_destroy(w) == false);
 
     w = binn_from(&holder, bv(wide_list, sizeof(wide_list)), &casted);
     BINN_ASSERT(w != 0 && casted == false);
     BINN_ASSERT(w->count == 1);
+    BINN_ASSERT(w->size == sizeof(wide_list)); // wrapped containers keep the exact input size
     BINN_ASSERT(binn_iter_init(*binnv(w), &it));
     BINN_ASSERT(binn_iter_next(&it));
     BINN_ASSERT(it.binn.val.nval == 42);
@@ -200,6 +203,55 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(binn_indexed_get(w, 0, &found));
     BINN_ASSERT(found.val.nval == 42);
     BINN_ASSERT(binn_destroy(w) == false);
+
+    // Copies of non minimal inputs are reserialized canonically, so `size` shrinks accordingly.
+    {
+      struct binn *cs = binn_copy_from(0, bv(wide_string, sizeof(wide_string)));
+      struct binn *cl = binn_copy_from(0, bv(wide_list, sizeof(wide_list)));
+      BINN_ASSERT(cs != 0 && cs->size == 5 && cs->size == binn_serialized_size(cs));
+      BINN_ASSERT(cl != 0 && cl->size == 5 && cl->size == binn_serialized_size(cl));
+      BINN_ASSERT(cs->size == 5);
+      binn_destroy(cs);
+      binn_destroy(cl);
+    }
+  }
+
+  // binn_serialized_size() matches the allocated buffer.
+  {
+    struct binn *b;
+    struct binn_val ser;
+    BINN_ASSERT(binn_serialized_size(0) == 0);
+
+    b = binn_create_u64c(0, 0x1226652FEull);
+    BINN_ASSERT(binn_serialized_size(b) == b->size && binn_serialized_size(b) == 9);
+    ser = binn_serialize_allocated(b);
+    BINN_ASSERT(ser.size == binn_serialized_size(b));
+    free(ser.buf);
+    binn_destroy(b);
+
+    b = binn_create_text(0, "hello", -1);
+    BINN_ASSERT(binn_serialized_size(b) == 8);
+    binn_destroy(b);
+
+    b = binn_create_list(0);
+    BINN_ASSERT(binn_serialized_size(b) == 3);
+    {
+      struct binn *v = binn_create_u64c(0, 1);
+      BINN_ASSERT(binn_add(b, *binnv(v), 0));
+      binn_destroy(v);
+    }
+    BINN_ASSERT(binn_serialized_size(b) == 5); // header + uint8
+    ser = binn_serialize_allocated(b);
+    BINN_ASSERT(ser.size == binn_serialized_size(b));
+    {
+      struct binn holder;
+      struct binn *w = binn_from(&holder, ser, 0);
+      BINN_ASSERT(w != 0);
+      BINN_ASSERT(binn_serialized_size(w) == ser.size);
+      binn_destroy(w);
+    }
+    free(ser.buf);
+    binn_destroy(b);
   }
 
   // Nesting is limited by BINN_MAX_NESTING_LEVELS.

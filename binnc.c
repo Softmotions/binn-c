@@ -708,7 +708,6 @@ static void free_holder(struct binn *b, struct binn *holder) {
 static void fill_wrapper(struct binn *out, const uint8_t *start, const struct value_meta *m) {
   out->magic = BINN_MAJIC_NUMBER;
   out->type = m->type;
-  out->size = m->total;
   out->count = m->count;
   out->used = (uint32_t) m->payload_len;
   out->allocated = 0;
@@ -726,6 +725,7 @@ static void fill_wrapper(struct binn *out, const uint8_t *start, const struct va
       out->wrapped.size = m->payload_len;
     }
   }
+  out->size = value_serialized_size(out);
 }
 
 /* ------------------------------------------------------------------ */
@@ -773,6 +773,7 @@ static bool binn_cow_container(struct binn *b) {
   b->flags &= (binn_flags_t) ~BINN_FLAGS_WRAPPED;
   b->val.bval = buf;
   b->allocated = (uint32_t) children_len;
+  b->size = container_serialized_size(b);
   return true;
 }
 
@@ -1198,7 +1199,6 @@ static struct binn* binn_from_impl(struct binn *holder, struct binn_val value, b
   }
   b->type = m.type;
   b->count = m.count;
-  b->size = m.total;
   b->used = (uint32_t) m.payload_len;
   if (m.storage == BINN_ST_CONTAINER) {
     b->flags |= BINN_FLG_WRAPPED_BINN;
@@ -1211,6 +1211,7 @@ static struct binn* binn_from_impl(struct binn *holder, struct binn_val value, b
       b->val.nval = load_scalar(m.payload, m.storage, type_is_signed_int(m.type));
     }
   }
+  b->size = value_serialized_size(b);
   return b;
 }
 
@@ -1238,7 +1239,6 @@ static struct binn* copy_from_serialized(struct binn *holder, const uint8_t *buf
   }
   dst->type = m.type;
   dst->count = m.count;
-  dst->size = m.total;
   dst->used = (uint32_t) m.payload_len;
   if (m.storage == BINN_ST_CONTAINER || m.storage == BINN_ST_STRING || m.storage == BINN_ST_BLOB) {
     if (m.payload_len) {
@@ -1258,6 +1258,7 @@ static struct binn* copy_from_serialized(struct binn *holder, const uint8_t *buf
   } else {
     dst->val.nval = load_scalar(m.payload, m.storage, type_is_signed_int(m.type));
   }
+  dst->size = value_serialized_size(dst);
   return dst;
 }
 
@@ -1395,6 +1396,13 @@ bool binn_is_any(struct binn_val value) {
 /* ------------------------------------------------------------------ */
 /* Public API: serialization                                          */
 /* ------------------------------------------------------------------ */
+
+size_t binn_serialized_size(const struct binn *binn) {
+  if (!binn) {
+    return 0;
+  }
+  return value_serialized_size(binn);
+}
 
 bool binn_serialize(const struct binn *binn, void (*consumer)(struct binn_val val, void *op), void *op) {
   struct stream_sink sc;

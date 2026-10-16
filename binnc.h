@@ -116,9 +116,9 @@ struct binn {
   binn_type_t type;   ///< Binn object type.
   uint32_t    count;  ///< Number of elements in the binn container.
                       ///  This value is iteratively updated in construction mode.
-  size_t size;        ///< Size of the serialized binn object in bytes.
-                      ///  This value is iteratively updated in construction mode.
-                      ///  Note: the binn object may not actually be in serialized (finalized) form.
+  size_t size;        ///< Size of the serialized binn object in bytes, using the canonical (minimal)
+                      ///  encoding. It is iteratively updated in construction mode and always equals the
+                      ///  value returned by `binn_serialized_size()`.
   uint32_t used;      ///< Number of bytes actually used in the buffer owned by `binn::val::bval`.
   uint32_t allocated; ///< Number of bytes allocated for `binn::val::bval`.
 
@@ -354,6 +354,18 @@ bool binn_is_serialized_buffer(struct binn_val value);
 /// @return `true` if `value` is a binn structure or a serialized binn value.
 bool binn_is_any(struct binn_val value);
 
+/// @brief Returns the serialized size of the given binn object in bytes.
+///
+/// The returned value is exactly the size of the buffer produced by `binn_serialize_allocated()` and
+/// `binn_serialize_into()` for the same object, including the container header, and is independent of
+/// whether the binn is in construction or wrapper mode.
+///
+/// @param binn A pointer to a binn struct to measure.
+/// @return Serialized size in bytes, or zero if `binn` is zero.
+///
+/// @see binn_serialize(), binn_serialize_allocated()
+size_t binn_serialized_size(const struct binn *binn);
+
 /// @brief Serializes a given binn object and feeds the result to the `consumer` callback.
 ///
 /// The `consumer` may be called many times as the serialized data is produced. The final call signals
@@ -367,7 +379,7 @@ bool binn_serialize(const struct binn *binn, void (*consumer)(struct binn_val va
 
 /// @brief Serializes a given binn object into a newly allocated heap buffer.
 ///
-/// The returned buffer must be freed by the caller after use.
+/// The returned binn_vasl->buf must be freed by the caller after use.
 ///
 /// @param binn A pointer to a binn struct to serialize.
 /// @return Allocated serialized value (release `binn_val::buf`), or a zero `binn_val` on error.
