@@ -83,7 +83,7 @@ static void fuzz_exercise(const struct binn *b, int depth) {
   (void) binn_bool_get(b);
   (void) binn_uin64_get(b);
   (void) binn_int64_get(b);
-  (void) binn_double_get(b);
+  (void) binn_f64_get(b);
   storage = fuzz_storage(b->type);
   if (storage == FUZZ_ST_STRING || storage == FUZZ_ST_BLOB) {
     struct binn_val bv = binn_blob_get(b);

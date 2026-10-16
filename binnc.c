@@ -1871,7 +1871,7 @@ int64_t binn_int64_get(const struct binn *binn) {
   return 0;
 }
 
-double binn_double_get(const struct binn *binn) {
+double binn_f64_get(const struct binn *binn) {
   if (!binn) {
     return 0.0;
   }

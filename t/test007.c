@@ -1,5 +1,5 @@
 // Scalar accessors: binn_blob_get(), binn_text_get(), binn_uin64_get(), binn_int64_get(),
-// binn_double_get(), binn_bool_get().
+// binn_f64_get(), binn_bool_get().
 #include "../binnc.h"
 #include "tests.h"
 
@@ -223,24 +223,24 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(binn_int64_get(0) == 0);
   }
 
-  // binn_double_get()
+  // binn_f64_get()
   {
     struct binn *b = binn_create_i64c(0, -5);
-    BINN_ASSERT(binn_double_get(b) == -5.0);
+    BINN_ASSERT(binn_f64_get(b) == -5.0);
     binn_destroy(b);
     b = binn_create_u64c(0, 123456789);
-    BINN_ASSERT(binn_double_get(b) == 123456789.0);
+    BINN_ASSERT(binn_f64_get(b) == 123456789.0);
     binn_destroy(b);
     b = binn_create_f32c(0, 1.5f);
-    BINN_ASSERT(binn_double_get(b) == 1.5);
+    BINN_ASSERT(binn_f64_get(b) == 1.5);
     binn_destroy(b);
     b = binn_create_f64c(0, 0.1);
-    BINN_ASSERT(binn_double_get(b) == 0.1);
+    BINN_ASSERT(binn_f64_get(b) == 0.1);
     binn_destroy(b);
     b = binn_create_text(0, "x", -1);
-    BINN_ASSERT(binn_double_get(b) == 0.0);
+    BINN_ASSERT(binn_f64_get(b) == 0.0);
     binn_destroy(b);
-    BINN_ASSERT(binn_double_get(0) == 0.0);
+    BINN_ASSERT(binn_f64_get(0) == 0.0);
   }
 
   // binn_bool_get()
@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
     BINN_ASSERT(binn_keyed_get(obj, "n", &found));
     BINN_ASSERT(binn_uin64_get(&found) == 42);
     BINN_ASSERT(binn_int64_get(&found) == 42);
-    BINN_ASSERT(binn_double_get(&found) == 42.0);
+    BINN_ASSERT(binn_f64_get(&found) == 42.0);
     BINN_ASSERT(binn_keyed_get(obj, "s", &found));
     {
       struct binn_val sv = binn_blob_get(&found);

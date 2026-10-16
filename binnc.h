@@ -539,7 +539,7 @@ int64_t binn_int64_get(const struct binn *binn);
 ///
 /// @param binn Source binn value.
 /// @return The converted value, or zero if `binn` does not hold a numeric scalar.
-double binn_double_get(const struct binn *binn);
+double binn_f64_get(const struct binn *binn);
 
 /// @brief Returns the value of a boolean scalar.
 ///
