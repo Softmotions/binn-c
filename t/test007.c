@@ -1,4 +1,4 @@
-// Scalar accessors: binn_blob_get(), binn_text_get(), binn_uin64_get(), binn_int64_get(),
+// Scalar accessors: binn_blob_get(), binn_text_get(), binn_u64_get(), binn_i64_get(),
 // binn_f64_get(), binn_bool_get().
 #include "../binnc.h"
 #include "tests.h"
@@ -159,68 +159,68 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  // binn_uin64_get()
+  // binn_u64_get()
   {
     struct binn *b = binn_create_u64c(0, 0x1226652FEull);
-    BINN_ASSERT(binn_uin64_get(b) == 0x1226652FEull);
+    BINN_ASSERT(binn_u64_get(b) == 0x1226652FEull);
     binn_destroy(b);
     b = binn_create_u64c(0, UINT64_MAX);
-    BINN_ASSERT(binn_uin64_get(b) == UINT64_MAX);
+    BINN_ASSERT(binn_u64_get(b) == UINT64_MAX);
     binn_destroy(b);
     b = binn_create_u64c(0, 255);
-    BINN_ASSERT(binn_uin64_get(b) == 255);
+    BINN_ASSERT(binn_u64_get(b) == 255);
     binn_destroy(b);
     b = binn_create_i64c(0, -1); // negative integers wrap to two's complement
-    BINN_ASSERT(binn_uin64_get(b) == UINT64_MAX);
+    BINN_ASSERT(binn_u64_get(b) == UINT64_MAX);
     binn_destroy(b);
     b = binn_create_i64c(0, INT64_MIN);
-    BINN_ASSERT(binn_uin64_get(b) == (uint64_t) INT64_MIN);
+    BINN_ASSERT(binn_u64_get(b) == (uint64_t) INT64_MIN);
     binn_destroy(b);
     b = binn_create_f32c(0, 2.75f);
-    BINN_ASSERT(binn_uin64_get(b) == 2);
+    BINN_ASSERT(binn_u64_get(b) == 2);
     binn_destroy(b);
     b = binn_create_f64c(0, 3.9);
-    BINN_ASSERT(binn_uin64_get(b) == 3);
+    BINN_ASSERT(binn_u64_get(b) == 3);
     binn_destroy(b);
     b = binn_create_f64c(0, -1.5);
-    BINN_ASSERT(binn_uin64_get(b) == 0);
+    BINN_ASSERT(binn_u64_get(b) == 0);
     binn_destroy(b);
     b = binn_create_f64c(0, 1e300);
-    BINN_ASSERT(binn_uin64_get(b) == 0);
+    BINN_ASSERT(binn_u64_get(b) == 0);
     binn_destroy(b);
     b = binn_create_text(0, "x", -1);
-    BINN_ASSERT(binn_uin64_get(b) == 0);
+    BINN_ASSERT(binn_u64_get(b) == 0);
     binn_destroy(b);
     b = binn_create_bool(0, true);
-    BINN_ASSERT(binn_uin64_get(b) == 0);
+    BINN_ASSERT(binn_u64_get(b) == 0);
     binn_destroy(b);
-    BINN_ASSERT(binn_uin64_get(0) == 0);
+    BINN_ASSERT(binn_u64_get(0) == 0);
   }
 
-  // binn_int64_get()
+  // binn_i64_get()
   {
     struct binn *b = binn_create_i64c(0, -1);
-    BINN_ASSERT(binn_int64_get(b) == -1);
+    BINN_ASSERT(binn_i64_get(b) == -1);
     binn_destroy(b);
     b = binn_create_i64c(0, INT64_MIN);
-    BINN_ASSERT(binn_int64_get(b) == INT64_MIN);
+    BINN_ASSERT(binn_i64_get(b) == INT64_MIN);
     binn_destroy(b);
     b = binn_create_u64c(0, 12345);
-    BINN_ASSERT(binn_int64_get(b) == 12345);
+    BINN_ASSERT(binn_i64_get(b) == 12345);
     binn_destroy(b);
     b = binn_create_f32c(0, -2.75f);
-    BINN_ASSERT(binn_int64_get(b) == -2);
+    BINN_ASSERT(binn_i64_get(b) == -2);
     binn_destroy(b);
     b = binn_create_f64c(0, 3.9);
-    BINN_ASSERT(binn_int64_get(b) == 3);
+    BINN_ASSERT(binn_i64_get(b) == 3);
     binn_destroy(b);
     b = binn_create_f64c(0, 1e300);
-    BINN_ASSERT(binn_int64_get(b) == 0);
+    BINN_ASSERT(binn_i64_get(b) == 0);
     binn_destroy(b);
     b = binn_create_f64c(0, -1e300);
-    BINN_ASSERT(binn_int64_get(b) == 0);
+    BINN_ASSERT(binn_i64_get(b) == 0);
     binn_destroy(b);
-    BINN_ASSERT(binn_int64_get(0) == 0);
+    BINN_ASSERT(binn_i64_get(0) == 0);
   }
 
   // binn_f64_get()
@@ -274,8 +274,8 @@ int main(int argc, char *argv[]) {
     binn_destroy(u);
     binn_destroy(t);
     BINN_ASSERT(binn_keyed_get(obj, "n", &found));
-    BINN_ASSERT(binn_uin64_get(&found) == 42);
-    BINN_ASSERT(binn_int64_get(&found) == 42);
+    BINN_ASSERT(binn_u64_get(&found) == 42);
+    BINN_ASSERT(binn_i64_get(&found) == 42);
     BINN_ASSERT(binn_f64_get(&found) == 42.0);
     BINN_ASSERT(binn_keyed_get(obj, "s", &found));
     {

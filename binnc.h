@@ -519,7 +519,7 @@ struct binn_val binn_text_get(const struct binn *binn);
 ///
 /// @param binn Source binn value.
 /// @return The converted value, or zero if `binn` does not hold a numeric scalar.
-uint64_t binn_uin64_get(const struct binn *binn);
+uint64_t binn_u64_get(const struct binn *binn);
 
 /// @brief Returns the value of a numeric scalar converted to `int64_t`.
 ///
@@ -530,7 +530,7 @@ uint64_t binn_uin64_get(const struct binn *binn);
 ///
 /// @param binn Source binn value.
 /// @return The converted value, or zero if `binn` does not hold a numeric scalar.
-int64_t binn_int64_get(const struct binn *binn);
+int64_t binn_i64_get(const struct binn *binn);
 
 /// @brief Returns the value of a numeric scalar converted to `double`.
 ///

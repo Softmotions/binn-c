@@ -1837,7 +1837,7 @@ struct binn_val binn_text_get(const struct binn *binn) {
   return binn_val_make(binn->val.bval, binn->used);
 }
 
-uint64_t binn_uin64_get(const struct binn *binn) {
+uint64_t binn_u64_get(const struct binn *binn) {
   if (!binn) {
     return 0;
   }
@@ -1854,7 +1854,7 @@ uint64_t binn_uin64_get(const struct binn *binn) {
   return 0;
 }
 
-int64_t binn_int64_get(const struct binn *binn) {
+int64_t binn_i64_get(const struct binn *binn) {
   if (!binn) {
     return 0;
   }
