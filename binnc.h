@@ -83,6 +83,9 @@ typedef uint16_t binn_flags_t;
 /// normally dereferenced when passed by value: `binn_add(list, *binnv(value), 0)`.
 #define binnv(binnptr__) & (struct binn_val) { .buf = (binnptr__), .size = sizeof(*(binnptr__)) }
 
+#define binn_type_is_container(type__) \
+    ((type__) == BINN_TYPE_OBJECT || (type__) == BINN_TYPE_LIST || (type__) == BINN_TYPE_MAP)
+
 /// Bounded reference to a buffer holding either a serialized binn value or a `struct binn`.
 ///
 /// Carrying the buffer size alongside the pointer lets the library validate every access and reject
