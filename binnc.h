@@ -44,7 +44,7 @@ typedef uint16_t binn_flags_t;
 #define BINN_TYPE_INT8     0x21 ///< Signed 8-bit integer.
 #define BINN_TYPE_UINT16   0x40 ///< Unsigned 16-bit integer.
 #define BINN_TYPE_INT16    0x41 ///< Signed 16-bit integer.
-#define BINN_TYPE_UINT32    0x60 ///< Unsigned 32-bit integer.
+#define BINN_TYPE_UINT32   0x60 ///< Unsigned 32-bit integer.
 #define BINN_TYPE_INT32    0x61 ///< Signed 32-bit integer.
 #define BINN_TYPE_FLOAT    0x62 ///< Single precision (32-bit) floating point number.
 #define BINN_TYPE_UINT64   0x80 ///< Unsigned 64-bit integer.
@@ -483,5 +483,69 @@ bool binn_keyed_get(const struct binn *binn, const char *key, struct binn *resul
 /// @see binn_add_mapped()
 bool binn_indexed_get(const struct binn *binn, uint32_t nkey, struct binn *result);
 
+/// @brief Returns a bounded reference to the payload of a string or blob value.
+///
+/// Applicable to values with string storage (`BINN_TYPE_TEXT`, `BINN_TYPE_DATETIME`, `BINN_TYPE_DATE`,
+/// `BINN_TYPE_TIME`, `BINN_TYPE_DECIMAL`, ...) and to `BINN_TYPE_BLOB`. The bytes are not copied, are
+/// not guaranteed to be null terminated and stay valid while `binn` is alive and unmodified.
+///
+/// @param binn Source binn value.
+/// @return `{ buf, size }` referencing the payload, or a zero `struct binn_val` if `binn` does not
+///     hold a string or blob value.
+///
+/// @see binn_create_text(), binn_create_blob()
+struct binn_val binn_blob_get(const struct binn *binn);
+
+/// @brief Returns the value of a text (or other null terminated string) scalar as a C string.
+///
+/// Applicable only to values with string storage (`BINN_TYPE_TEXT`, `BINN_TYPE_DATETIME`,
+/// `BINN_TYPE_DATE`, `BINN_TYPE_TIME`, `BINN_TYPE_DECIMAL`, ...). The returned buffer is always null
+/// terminated, and `size` is the text length in bytes excluding the terminating null byte. The bytes
+/// are not copied and stay valid while `binn` is alive and unmodified.
+///
+/// @param binn Source binn value.
+/// @return `{ buf, size }` referencing the null terminated text, or a zero `struct binn_val` if
+///     `binn` does not hold a string value.
+///
+/// @see binn_blob_get(), binn_create_text()
+struct binn_val binn_text_get(const struct binn *binn);
+
+/// @brief Returns the value of a numeric scalar converted to `uint64_t`.
+///
+/// Signed integer values are sign extended, so a negative integer wraps to its two's complement
+/// `uint64_t`. Floating point values are truncated toward zero; a value that is negative, not finite
+/// or too large to represent yields zero. Not applicable to null, boolean, string, blob or container
+/// values.
+///
+/// @param binn Source binn value.
+/// @return The converted value, or zero if `binn` does not hold a numeric scalar.
+uint64_t binn_uin64_get(const struct binn *binn);
+
+/// @brief Returns the value of a numeric scalar converted to `int64_t`.
+///
+/// Integer values are converted as-is, so a `uint64_t` above `INT64_MAX` wraps to its two's
+/// complement `int64_t`. Floating point values are truncated toward zero; a value that is not finite
+/// or too large to represent yields zero. Not applicable to null, boolean, string, blob or container
+/// values.
+///
+/// @param binn Source binn value.
+/// @return The converted value, or zero if `binn` does not hold a numeric scalar.
+int64_t binn_int64_get(const struct binn *binn);
+
+/// @brief Returns the value of a numeric scalar converted to `double`.
+///
+/// Applicable to values with numeric storage, including `BINN_TYPE_FLOAT` and `BINN_TYPE_DOUBLE`.
+/// Not applicable to null, boolean, string, blob or container values.
+///
+/// @param binn Source binn value.
+/// @return The converted value, or zero if `binn` does not hold a numeric scalar.
+double binn_double_get(const struct binn *binn);
+
+/// @brief Returns the value of a boolean scalar.
+///
+/// @param binn Source binn value.
+/// @return `true` for `BINN_TYPE_TRUE`, `false` otherwise (including `BINN_TYPE_FALSE` and any
+///     non-applicable type).
+bool binn_bool_get(const struct binn *binn);
 
 #endif

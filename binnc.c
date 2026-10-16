@@ -440,6 +440,9 @@ static const uint8_t* parse_value(const uint8_t *p, const uint8_t *end, struct v
         if (end && p >= end) {
           return 0;
         }
+        if (*p != 0) { // strings are null terminated
+          return 0;
+        }
         p += 1; // null terminator
       }
       m->total = (size_t) (p - start);
@@ -990,14 +993,18 @@ struct binn* binn_create_value(struct binn *holder, const struct binn_create_spe
       b->flags |= BINN_FLG_WRAPPED_PAYLOAD;
       b->wrapped = binn_val_make(sval.buf, len);
     } else if (len) {
-      b->val.bval = (uint8_t*) malloc(len);
+      size_t alloc = len + ((storage == BINN_ST_STRING) ? 1 : 0);
+      b->val.bval = (uint8_t*) malloc(alloc);
       if (!b->val.bval) {
         errno = ENOMEM;
         free_holder(b, holder);
         return 0;
       }
       memcpy(b->val.bval, sval.buf, len);
-      b->allocated = (uint32_t) len;
+      if (storage == BINN_ST_STRING) {
+        b->val.bval[len] = 0; // keep string payloads null terminated
+      }
+      b->allocated = (uint32_t) alloc;
     }
     b->size = leaf_serialized_size(type, len);
     return b;
@@ -1235,14 +1242,18 @@ static struct binn* copy_from_serialized(struct binn *holder, const uint8_t *buf
   dst->used = (uint32_t) m.payload_len;
   if (m.storage == BINN_ST_CONTAINER || m.storage == BINN_ST_STRING || m.storage == BINN_ST_BLOB) {
     if (m.payload_len) {
-      dst->val.bval = (uint8_t*) malloc(m.payload_len);
+      size_t alloc = m.payload_len + ((m.storage == BINN_ST_STRING) ? 1 : 0);
+      dst->val.bval = (uint8_t*) malloc(alloc);
       if (!dst->val.bval) {
         errno = ENOMEM;
         free_holder(dst, holder);
         return 0;
       }
       memcpy(dst->val.bval, m.payload, m.payload_len);
-      dst->allocated = (uint32_t) m.payload_len;
+      if (m.storage == BINN_ST_STRING) {
+        dst->val.bval[m.payload_len] = 0;
+      }
+      dst->allocated = (uint32_t) alloc;
     }
   } else {
     dst->val.nval = load_scalar(m.payload, m.storage, type_is_signed_int(m.type));
@@ -1277,14 +1288,18 @@ static struct binn* copy_from_struct(struct binn *holder, const struct binn *v) 
     dst->size = container_serialized_size(dst);
   } else if (storage == BINN_ST_STRING || storage == BINN_ST_BLOB) {
     if (v->used) {
-      dst->val.bval = (uint8_t*) malloc(v->used);
+      size_t alloc = v->used + ((storage == BINN_ST_STRING) ? 1 : 0);
+      dst->val.bval = (uint8_t*) malloc(alloc);
       if (!dst->val.bval) {
         errno = ENOMEM;
         free_holder(dst, holder);
         return 0;
       }
       memcpy(dst->val.bval, v->val.bval, v->used);
-      dst->allocated = v->used;
+      if (storage == BINN_ST_STRING) {
+        dst->val.bval[v->used] = 0;
+      }
+      dst->allocated = (uint32_t) alloc;
     }
     dst->size = leaf_serialized_size(v->type, v->used);
   } else {
@@ -1762,4 +1777,113 @@ void binn_visit(const struct binn *binn, int (*visitor)(struct binn_iter *it, vo
     return;
   }
   visit_children((void*) (uintptr_t) binn, visitor, op, 0);
+}
+
+/* ------------------------------------------------------------------ */
+/* Public API: scalar accessors                                       */
+/* ------------------------------------------------------------------ */
+
+/// `true` for a single precision floating point scalar (`BINN_TYPE_FLOAT`).
+static bool type_is_f32(binn_type_t type) {
+  return type_storage(type) == BINN_ST_DWORD && type_subtype(type) == 2;
+}
+
+/// `true` for a double precision floating point scalar (`BINN_TYPE_DOUBLE`).
+static bool type_is_f64(binn_type_t type) {
+  return type_storage(type) == BINN_ST_QWORD && type_subtype(type) == 2;
+}
+
+/// `true` for an integer scalar (any numeric storage that is not a float/double).
+static bool type_is_integer_scalar(binn_type_t type) {
+  int storage = type_storage(type);
+  return storage >= BINN_ST_BYTE && storage <= BINN_ST_QWORD && !type_is_f32(type) && !type_is_f64(type);
+}
+
+/// Reads any numeric scalar as a host order `double`.
+static double scalar_as_double(const struct binn *b) {
+  if (type_is_f32(b->type)) {
+    float f;
+    uint32_t bits = (uint32_t) b->val.nval;
+    memcpy(&f, &bits, sizeof(f));
+    return (double) f;
+  }
+  if (type_is_f64(b->type)) {
+    double d;
+    memcpy(&d, &b->val.nval, sizeof(d));
+    return d;
+  }
+  if (type_is_signed_int(b->type)) {
+    return (double) (int64_t) b->val.nval;
+  }
+  return (double) b->val.nval;
+}
+
+struct binn_val binn_blob_get(const struct binn *binn) {
+  int storage;
+  if (!binn) {
+    return binn_val_make(0, 0);
+  }
+  storage = type_storage(binn->type);
+  if (storage != BINN_ST_STRING && storage != BINN_ST_BLOB) {
+    return binn_val_make(0, 0);
+  }
+  return binn_val_make(binn->val.bval, binn->used);
+}
+
+struct binn_val binn_text_get(const struct binn *binn) {
+  if (!binn || type_storage(binn->type) != BINN_ST_STRING) {
+    return binn_val_make(0, 0);
+  }
+  return binn_val_make(binn->val.bval, binn->used);
+}
+
+uint64_t binn_uin64_get(const struct binn *binn) {
+  if (!binn) {
+    return 0;
+  }
+  if (type_is_integer_scalar(binn->type)) {
+    return binn->val.nval;
+  }
+  if (type_is_f32(binn->type) || type_is_f64(binn->type)) {
+    double d = scalar_as_double(binn);
+    if (!(d >= 0.0) || d >= 18446744073709551616.0) { // negative, NaN or >= 2^64
+      return 0;
+    }
+    return (uint64_t) d;
+  }
+  return 0;
+}
+
+int64_t binn_int64_get(const struct binn *binn) {
+  if (!binn) {
+    return 0;
+  }
+  if (type_is_integer_scalar(binn->type)) {
+    return (int64_t) binn->val.nval;
+  }
+  if (type_is_f32(binn->type) || type_is_f64(binn->type)) {
+    double d = scalar_as_double(binn);
+    if (!(d >= -9223372036854775808.0) || d >= 9223372036854775808.0) { // NaN or outside int64
+      return 0;
+    }
+    return (int64_t) d;
+  }
+  return 0;
+}
+
+double binn_double_get(const struct binn *binn) {
+  if (!binn) {
+    return 0.0;
+  }
+  if (type_is_integer_scalar(binn->type) || type_is_f32(binn->type) || type_is_f64(binn->type)) {
+    return scalar_as_double(binn);
+  }
+  return 0.0;
+}
+
+bool binn_bool_get(const struct binn *binn) {
+  if (!binn) {
+    return false;
+  }
+  return binn->type == BINN_TYPE_TRUE;
 }

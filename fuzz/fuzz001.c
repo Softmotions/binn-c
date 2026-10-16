@@ -80,9 +80,23 @@ static void fuzz_exercise(const struct binn *b, int depth) {
   if (!b) {
     return;
   }
+  (void) binn_bool_get(b);
+  (void) binn_uin64_get(b);
+  (void) binn_int64_get(b);
+  (void) binn_double_get(b);
   storage = fuzz_storage(b->type);
   if (storage == FUZZ_ST_STRING || storage == FUZZ_ST_BLOB) {
-    fuzz_touch(b->val.bval, b->used);
+    struct binn_val bv = binn_blob_get(b);
+    fuzz_touch(bv.buf, bv.size);
+    if (storage == FUZZ_ST_STRING) {
+      struct binn_val tv = binn_text_get(b);
+      if (tv.size) {
+        fuzz_touch(tv.buf, tv.size);
+        if (((const uint8_t*) tv.buf)[tv.size] != 0) {
+          fuzz_bug("binn_text_get() returned non terminated text");
+        }
+      }
+    }
     return;
   }
   if (storage != FUZZ_ST_CONTAINER) {

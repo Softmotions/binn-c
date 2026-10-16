@@ -6,6 +6,7 @@ cc {
     test004.c
     test005.c
     test006.c
+    test007.c
    }
   ${CFLAGS_TESTS}
 }
