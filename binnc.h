@@ -153,6 +153,12 @@ struct binn {
   void  (*on_destroy)(struct binn*); ///< Optional callback invoked when the binn object is destroyed.
 };
 
+/// Static initializer for an empty binn structure: a construction mode `BINN_TYPE_NULL` value with no
+/// data, ready for `binn_create_xxx()`, `binn_add_xxx()` or `binn_destroy()`.
+///
+/// Usage: `struct binn b = BINN_INITIALIZER;`
+#define BINN_INITIALIZER { .magic = BINN_MAJIC_NUMBER, .type = BINN_TYPE_NULL }
+
 /// Binn value creation specification.
 /// Used as the specification for `binn_create_value()`.
 struct binn_create_spec {

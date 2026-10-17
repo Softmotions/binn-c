@@ -148,5 +148,33 @@ int main(int argc, char *argv[]) {
     binn_destroy(b);
   }
 
+  // BINN_INITIALIZER creates a valid empty binn struct.
+  {
+    struct binn b = BINN_INITIALIZER;
+    struct binn_val s;
+    BINN_ASSERT(b.magic == BINN_MAJIC_NUMBER);
+    BINN_ASSERT(b.flags == 0);
+    BINN_ASSERT(b.type == BINN_TYPE_NULL);
+    BINN_ASSERT(binn_is_null(&b));
+    BINN_ASSERT(binn_serialized_size(&b) == 1);
+    s = binn_serialize_allocated(&b);
+    BINN_ASSERT(s.buf != 0 && s.size == 1 && ((const uint8_t*) s.buf)[0] == 0x00);
+    free(s.buf);
+    BINN_ASSERT(binn_destroy(&b) == false);
+
+    // The holder can be reused by a creator.
+    {
+      struct binn *list = binn_create_list(&b);
+      BINN_ASSERT(list == &b && b.type == BINN_TYPE_LIST);
+      BINN_ASSERT(binn_destroy(list) == false);
+    }
+
+    // Compound literal form.
+    {
+      struct binn *p = &(struct binn) BINN_INITIALIZER;
+      BINN_ASSERT(p->magic == BINN_MAJIC_NUMBER && binn_is_null(p));
+    }
+  }
+
   return binn_assertions_failed > 0 ? 1 : 0;
 }
