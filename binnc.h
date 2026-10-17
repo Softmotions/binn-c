@@ -121,8 +121,8 @@ struct binn_val {
 ///
 /// 3. View mode (when `BINN_FLG_VIEW` is set). The binn references data owned by another binn and does
 ///    not free it. It may also carry a `BINN_FLG_WRAPPED_*` flag inherited from its source. On the first
-///    modification the referenced data is copied to the heap, `BINN_FLG_VIEW` is unset and the binn
-///    starts owning its data. See `binn_create_view_from()`.
+///    modification or call of `binn_view_materialize()` the referenced data is copied to the heap, `BINN_FLG_VIEW` is
+///    unset and the binn starts owning its data. See `binn_create_view_from()`.
 ///
 /// @see BINN_FLG_WRAPPED_BINN, BINN_FLG_WRAPPED_PAYLOAD, BINN_FLG_VIEW
 struct binn {
