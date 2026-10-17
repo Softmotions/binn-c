@@ -137,15 +137,15 @@ struct fuzz_stream {
   int     terminated;
 };
 
-static bool fuzz_stream_cb(struct binn_val val, void *op) {
+static bool fuzz_stream_cb(const uint8_t *buf, size_t len, void *op) {
   struct fuzz_stream *s = (struct fuzz_stream*) op;
-  if (!val.buf && !val.size) {
+  if (!buf && !len) {
     s->terminated++;
     return true;
   }
-  if (s->len + val.size <= sizeof(s->buf)) {
-    memcpy(s->buf + s->len, val.buf, val.size);
-    s->len += val.size;
+  if (s->len + len <= sizeof(s->buf)) {
+    memcpy(s->buf + s->len, buf, len);
+    s->len += len;
   }
   return true;
 }

@@ -371,19 +371,20 @@ size_t binn_serialized_size(const struct binn *binn);
 
 /// @brief Serializes a given binn object and feeds the result to the `consumer` callback.
 ///
-/// The `consumer` may be called many times as the serialized data is produced. The final call signals
-/// the end of the stream and is made with a zero `val.buf` and a zero `val.size`.
+/// The `consumer` may be called many times as the serialized data is produced, each time with a
+/// `(buf, len)` chunk. The final call signals the end of the stream and is made with a zero `buf` and
+/// a zero `len`.
 ///
 /// Serialization is aborted as soon as `consumer` returns `false`: no further chunks are produced and
 /// `binn_serialize()` returns `false` without the final zero-length call.
 ///
 /// @param binn A pointer to a binn struct to serialize.
-/// @param consumer Callback invoked with chunks of the serialized binn buffer. Returning `false`
-///     aborts serialization.
+/// @param consumer Callback invoked with chunks of the serialized binn buffer as `(buf, len)`.
+///     Returning `false` aborts serialization.
 /// @param op Optional user data passed to the `consumer` callback.
 /// @return `true` if the whole value and the final zero-length callback were delivered successfully,
 ///     `false` otherwise.
-bool binn_serialize(const struct binn *binn, bool (*consumer)(struct binn_val val, void *op), void *op);
+bool binn_serialize(const struct binn *binn, bool (*consumer)(const uint8_t *buf, size_t len, void *op), void *op);
 
 /// @brief Serializes a given binn object into a newly allocated heap buffer.
 ///

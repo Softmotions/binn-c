@@ -24,15 +24,15 @@ struct stream_acc {
   int     final_calls;
 };
 
-static bool stream_consumer(struct binn_val val, void *op) {
+static bool stream_consumer(const uint8_t *buf, size_t len, void *op) {
   struct stream_acc *a = (struct stream_acc*) op;
-  if (!val.buf && !val.size) {
+  if (!buf && !len) {
     a->final_calls++;
     return true;
   }
-  BINN_ASSERT(a->len + val.size <= sizeof(a->data));
-  memcpy(a->data + a->len, val.buf, val.size);
-  a->len += val.size;
+  BINN_ASSERT(a->len + len <= sizeof(a->data));
+  memcpy(a->data + a->len, buf, len);
+  a->len += len;
   return true;
 }
 
@@ -41,9 +41,9 @@ struct abort_acc {
   int final_calls;
 };
 
-static bool abort_consumer(struct binn_val val, void *op) {
+static bool abort_consumer(const uint8_t *buf, size_t len, void *op) {
   struct abort_acc *a = (struct abort_acc*) op;
-  if (!val.buf && !val.size) {
+  if (!buf && !len) {
     a->final_calls++;
     return true;
   }
