@@ -90,7 +90,7 @@ int main(int argc, char *argv[]) {
     while (binn_iter_next(&it)) {
       BINN_ASSERT(it.exists);
       BINN_ASSERT(it.key != 0);
-      BINN_ASSERT(it.idx == -1);
+      BINN_ASSERT(it.idx == (int32_t) strlen(it.key)); // string key length
       switch (n) {
         case 0:
           BINN_ASSERT(strcmp(it.key, "id") == 0);

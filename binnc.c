@@ -1797,6 +1797,7 @@ bool binn_iter_next(struct binn_iter *iter) {
     if ((size_t) (end - p) < klen || klen > BINN_KEY_MAXLEN) {
       return false;
     }
+    iter->idx = (int32_t) klen; // string key length
     memcpy(iter->keybuf, p, klen);
     iter->keybuf[klen] = 0;
     iter->key = iter->keybuf;

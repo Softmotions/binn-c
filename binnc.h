@@ -504,8 +504,8 @@ struct binn_iter {
   const char *key;                  ///< Zero-terminated string key of the current object in the binn
                                     ///  container, or zero if not applicable. A non-zero value normally
                                     ///  points to `binn_iter::keybuf`.
-  int32_t idx;                      ///< Numeric key of the current binn object in a binn map, or `-1` if
-                                    ///  not applicable.
+  int32_t idx;                      ///< Numeric key of the current binn object in a binn map, the
+                                    ///  string key length for a binn object, or `-1` if not applicable.
   struct binn_iter_state state;     ///< Internal iteration state. Not intended for direct use.
   bool exists;                      ///< `true` if the iterator points to a real binn object.
   char keybuf[BINN_KEY_MAXLEN + 1]; ///< Buffer holding the string key of the current binn object.
