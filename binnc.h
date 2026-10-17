@@ -339,6 +339,19 @@ struct binn* binn_create_object(struct binn *holder);
 /// @return `true` if the `binn` struct itself was freed or was a zero, in which case the pointer is no longer valid.
 bool binn_destroy(struct binn *binn);
 
+/// @brief Resets a binn struct to its pristine (empty) state.
+///
+/// Zeroes all fields and restores `binn::magic` to `BINN_MAJIC_NUMBER`, leaving an empty construction
+/// mode value (`BINN_TYPE_NULL`). Does nothing if `binn` is zero.
+///
+/// @note This does not release any resources: it does not free `binn::val::bval`, does not invoke
+///     `binn::on_destroy` and does not free the struct itself. Use `binn_destroy()` for that.
+///
+/// @param binn Binn value to reset. May be zero.
+///
+/// @see binn_destroy()
+void binn_reset(struct binn *binn);
+
 /// @brief Returns `true` if a given `value` represents a `struct binn` object.
 ///
 /// @param value Value to inspect.

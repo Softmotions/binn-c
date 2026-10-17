@@ -1357,6 +1357,13 @@ bool binn_destroy(struct binn *binn) {
   return false;
 }
 
+void binn_reset(struct binn *binn) {
+  if (binn) {
+    memset(binn, 0, sizeof(*binn));
+    binn->magic = BINN_MAJIC_NUMBER;
+  }
+}
+
 /* ------------------------------------------------------------------ */
 /* Public API: type checks                                            */
 /* ------------------------------------------------------------------ */
