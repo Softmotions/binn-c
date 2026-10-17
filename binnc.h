@@ -88,7 +88,7 @@ typedef uint16_t binn_flags_t;
 
 /// Builds a `struct binn_val` for a typed pointer. `binnv(ptr)` yields a `struct binn_val*`, so it is
 /// normally dereferenced when passed by value: `binn_add(list, *binnv(value), 0)`.
-#define binnv(binnptr__) & (struct binn_val) { .buf = (binnptr__), .size = sizeof(*(binnptr__)) }
+#define binnv(binnptr__) & (struct binn_val) { .buf = (void*) (binnptr__), .size = sizeof(*(binnptr__)) }
 
 #define binn_type_is_container(type__) \
         ((type__) == BINN_TYPE_OBJECT || (type__) == BINN_TYPE_LIST || (type__) == BINN_TYPE_MAP)
