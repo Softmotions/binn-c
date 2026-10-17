@@ -84,7 +84,7 @@ typedef uint16_t binn_flags_t;
 #define binnv(binnptr__) & (struct binn_val) { .buf = (binnptr__), .size = sizeof(*(binnptr__)) }
 
 #define binn_type_is_container(type__) \
-    ((type__) == BINN_TYPE_OBJECT || (type__) == BINN_TYPE_LIST || (type__) == BINN_TYPE_MAP)
+        ((type__) == BINN_TYPE_OBJECT || (type__) == BINN_TYPE_LIST || (type__) == BINN_TYPE_MAP)
 
 /// Bounded reference to a buffer holding either a serialized binn value or a `struct binn`.
 ///
@@ -374,11 +374,16 @@ size_t binn_serialized_size(const struct binn *binn);
 /// The `consumer` may be called many times as the serialized data is produced. The final call signals
 /// the end of the stream and is made with a zero `val.buf` and a zero `val.size`.
 ///
+/// Serialization is aborted as soon as `consumer` returns `false`: no further chunks are produced and
+/// `binn_serialize()` returns `false` without the final zero-length call.
+///
 /// @param binn A pointer to a binn struct to serialize.
-/// @param consumer Callback invoked with chunks of the serialized binn buffer.
+/// @param consumer Callback invoked with chunks of the serialized binn buffer. Returning `false`
+///     aborts serialization.
 /// @param op Optional user data passed to the `consumer` callback.
-/// @return `false` on error.
-bool binn_serialize(const struct binn *binn, void (*consumer)(struct binn_val val, void *op), void *op);
+/// @return `true` if the whole value and the final zero-length callback were delivered successfully,
+///     `false` otherwise.
+bool binn_serialize(const struct binn *binn, bool (*consumer)(struct binn_val val, void *op), void *op);
 
 /// @brief Serializes a given binn object into a newly allocated heap buffer.
 ///

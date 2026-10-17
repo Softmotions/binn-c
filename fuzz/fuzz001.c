@@ -137,16 +137,17 @@ struct fuzz_stream {
   int     terminated;
 };
 
-static void fuzz_stream_cb(struct binn_val val, void *op) {
+static bool fuzz_stream_cb(struct binn_val val, void *op) {
   struct fuzz_stream *s = (struct fuzz_stream*) op;
   if (!val.buf && !val.size) {
     s->terminated++;
-    return;
+    return true;
   }
   if (s->len + val.size <= sizeof(s->buf)) {
     memcpy(s->buf + s->len, val.buf, val.size);
     s->len += val.size;
   }
+  return true;
 }
 
 /// Checks that streaming and allocated serialization agree.

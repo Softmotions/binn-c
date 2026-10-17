@@ -24,15 +24,31 @@ struct stream_acc {
   int     final_calls;
 };
 
-static void stream_consumer(struct binn_val val, void *op) {
+static bool stream_consumer(struct binn_val val, void *op) {
   struct stream_acc *a = (struct stream_acc*) op;
   if (!val.buf && !val.size) {
     a->final_calls++;
-    return;
+    return true;
   }
   BINN_ASSERT(a->len + val.size <= sizeof(a->data));
   memcpy(a->data + a->len, val.buf, val.size);
   a->len += val.size;
+  return true;
+}
+
+struct abort_acc {
+  int calls;
+  int final_calls;
+};
+
+static bool abort_consumer(struct binn_val val, void *op) {
+  struct abort_acc *a = (struct abort_acc*) op;
+  if (!val.buf && !val.size) {
+    a->final_calls++;
+    return true;
+  }
+  a->calls++;
+  return false;
 }
 
 int main(int argc, char *argv[]) {
@@ -125,6 +141,20 @@ int main(int argc, char *argv[]) {
       BINN_ASSERT_MEM(acc.data, buf.buf, obj->size);
       free(buf.buf);
     }
+    binn_destroy(obj);
+  }
+
+  // A consumer returning false aborts serialization before the end-of-stream call.
+  {
+    struct abort_acc acc;
+    struct binn *obj = binn_create_object(0);
+    struct binn *v = make_text("value");
+    memset(&acc, 0, sizeof(acc));
+    BINN_ASSERT(binn_add_keyed(obj, "k", *binnv(v)));
+    binn_destroy(v);
+    BINN_ASSERT(binn_serialize(obj, abort_consumer, &acc) == false);
+    BINN_ASSERT(acc.calls == 1);
+    BINN_ASSERT(acc.final_calls == 0);
     binn_destroy(obj);
   }
 

@@ -580,14 +580,13 @@ static bool mem_sink_write(void *ctx, const uint8_t *data, size_t len) {
 }
 
 struct stream_sink {
-  void  (*consumer)(struct binn_val val, void *op);
+  bool  (*consumer)(struct binn_val val, void *op);
   void *op;
 };
 
 static bool stream_sink_write(void *ctx, const uint8_t *data, size_t len) {
   struct stream_sink *s = (struct stream_sink*) ctx;
-  s->consumer(binn_val_make(data, len), s->op);
-  return true;
+  return s->consumer(binn_val_make(data, len), s->op);
 }
 
 /* ------------------------------------------------------------------ */
@@ -1404,7 +1403,7 @@ size_t binn_serialized_size(const struct binn *binn) {
   return value_serialized_size(binn);
 }
 
-bool binn_serialize(const struct binn *binn, void (*consumer)(struct binn_val val, void *op), void *op) {
+bool binn_serialize(const struct binn *binn, bool (*consumer)(struct binn_val val, void *op), void *op) {
   struct stream_sink sc;
   struct binn_sink sink;
   if (!binn || !consumer) {
@@ -1418,8 +1417,8 @@ bool binn_serialize(const struct binn *binn, void (*consumer)(struct binn_val va
   if (!emit_value(&sink, binn, 0)) {
     return false;
   }
-  consumer(binn_val_make(0, 0), op);
-  return true;
+  // Signal end of stream; its result is the overall result.
+  return consumer(binn_val_make(0, 0), op);
 }
 
 struct binn_val binn_serialize_allocated(const struct binn *binn) {
