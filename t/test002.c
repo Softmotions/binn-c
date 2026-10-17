@@ -149,5 +149,56 @@ int main(int argc, char *argv[]) {
     binn_destroy(list);
   }
 
+  // binn_add_keyed2(): explicit key length, no null termination required.
+  {
+    struct binn *obj = binn_create_object(0);
+    struct binn *v = make_u8(7);
+    struct binn found;
+    char key[] = { 'a', 'b', 'c', 'd', 'e' }; // not null terminated
+    static const uint8_t expected[] = {
+      0xE2, 0x09, 0x01,
+      0x03, 'a', 'b', 'c',
+      0x20, 0x07
+    };
+    BINN_ASSERT(binn_add_keyed2(obj, key, 3, *binnv(v)));
+    BINN_ASSERT(obj->count == 1);
+    binn_test_check_bytes(obj, expected, sizeof(expected));
+    BINN_ASSERT(binn_keyed_get(obj, "abc", &found));
+    BINN_ASSERT(found.val.nval == 7);
+    binn_destroy(obj);
+    binn_destroy(v);
+  }
+
+  // Empty key: a zero key pointer is allowed with a zero length.
+  {
+    struct binn *obj = binn_create_object(0);
+    struct binn *v = make_u8(1);
+    struct binn found;
+    BINN_ASSERT(binn_add_keyed2(obj, 0, 0, *binnv(v)));
+    BINN_ASSERT(binn_keyed_get(obj, "", &found));
+    BINN_ASSERT(found.val.nval == 1);
+    binn_destroy(obj);
+    binn_destroy(v);
+  }
+
+  // Key length limits and invalid arguments.
+  {
+    struct binn *obj = binn_create_object(0);
+    struct binn *v = make_u8(1);
+    struct binn found;
+    char big[BINN_KEY_MAXLEN + 2];
+    memset(big, 'k', sizeof(big));
+    big[BINN_KEY_MAXLEN] = 0;
+    BINN_ASSERT(!binn_add_keyed2(obj, big, BINN_KEY_MAXLEN + 1, *binnv(v))); // too long
+    BINN_ASSERT(!binn_add_keyed2(obj, 0, 3, *binnv(v)));                     // NULL key with a length
+    BINN_ASSERT(!binn_add_keyed2(obj, "k", 1, bv(0, 0)));                    // no value
+    BINN_ASSERT(obj->count == 0);
+    BINN_ASSERT(binn_add_keyed2(obj, big, BINN_KEY_MAXLEN, *binnv(v)));      // max length
+    BINN_ASSERT(binn_keyed_get(obj, big, &found));
+    BINN_ASSERT(found.val.nval == 1);
+    binn_destroy(obj);
+    binn_destroy(v);
+  }
+
   return binn_assertions_failed > 0 ? 1 : 0;
 }

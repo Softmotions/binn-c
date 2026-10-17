@@ -472,6 +472,20 @@ struct binn_val binn_serialize_into(const struct binn *binn, uint8_t *buffer, si
 /// @return `false` on error.
 bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value);
 
+/// @brief Adds a `value` associated with the given sized `key` to a `BINN_TYPE_OBJECT` binn object.
+///
+/// Unlike `binn_add_keyed()`, the key does not have to be null terminated: exactly `keylen` bytes are
+/// used. `key` may be zero when `keylen` is zero, which adds an empty key.
+///
+/// @param binn Target binn object.
+/// @param key Key bytes to associate the value with.
+/// @param keylen Number of key bytes; must not exceed `BINN_KEY_MAXLEN`.
+/// @param value A binn struct or a serialized binn value (see `binnv()`).
+/// @return `false` on error.
+///
+/// @see binn_add_keyed()
+bool binn_add_keyed2(struct binn *binn, const char *key, size_t keylen, struct binn_val value);
+
 /// @brief Adds a `value` associated with the given numeric `idx` key to a `BINN_TYPE_MAP` binn object.
 ///
 /// @param binn Target binn object.

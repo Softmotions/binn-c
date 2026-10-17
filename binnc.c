@@ -1557,11 +1557,10 @@ struct binn_val binn_serialize_into(const struct binn *binn, uint8_t *buffer, si
 /* Public API: containers                                             */
 /* ------------------------------------------------------------------ */
 
-bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
+bool binn_add_keyed2(struct binn *binn, const char *key, size_t keylen, struct binn_val value) {
   uint8_t prefix[BINN_KEY_MAXLEN + 1];
-  size_t keylen;
 
-  if (!binn || !key || !value.buf) {
+  if (!binn || !value.buf || (!key && keylen)) {
     errno = EINVAL;
     return false;
   }
@@ -1569,7 +1568,6 @@ bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
     errno = EINVAL;
     return false;
   }
-  keylen = strlen(key);
   if (keylen > BINN_KEY_MAXLEN) {
     errno = EINVAL;
     return false;
@@ -1579,6 +1577,14 @@ bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
     memcpy(prefix + 1, key, keylen);
   }
   return container_add_value(binn, prefix, keylen + 1, value);
+}
+
+bool binn_add_keyed(struct binn *binn, const char *key, struct binn_val value) {
+  if (!binn || !key) {
+    errno = EINVAL;
+    return false;
+  }
+  return binn_add_keyed2(binn, key, strlen(key), value);
 }
 
 bool binn_add_mapped(struct binn *binn, int32_t idx, struct binn_val value) {
