@@ -342,7 +342,7 @@ struct binn* binn_copy_from(struct binn *holder, struct binn_val value);
 /// @return `true` on success, or `false` with `errno` set (for example `EINVAL`) on error.
 ///
 /// @see BINN_FLG_VIEW, binn_destroy()
-bool binn_create_view_from(struct binn *holder, struct binn *binn);
+bool binn_create_view_from(struct binn *holder, const struct binn *binn);
 
 /// @brief Materializes a view by copying its referenced data into a buffer owned by the binn.
 ///

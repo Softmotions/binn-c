@@ -1330,13 +1330,13 @@ struct binn* binn_copy_from(struct binn *holder, struct binn_val value) {
   return copy_from_serialized(holder, (const uint8_t*) value.buf, value.size);
 }
 
-bool binn_create_view_from(struct binn *holder, struct binn *binn) {
+bool binn_create_view_from(struct binn *holder, const struct binn *binn) {
   struct binn_val ref;
   if (!holder || !binn || holder == binn) {
     errno = EINVAL;
     return false;
   }
-  ref.buf = binn;
+  ref.buf = (void*) binn;
   ref.size = sizeof(*binn);
   if (!binn_is_struct_instance(ref)) {
     errno = EINVAL;
