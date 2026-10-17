@@ -95,7 +95,6 @@ set {
   if { prefix { ${BUILD_TYPE} Debug }
     -O0
     -ggdb
-    -Werror
     -fno-omit-frame-pointer
     -Wno-unused-variable
     -DDEBUG -D_DEBUG -UNDEBUG
