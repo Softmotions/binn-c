@@ -1915,6 +1915,10 @@ bool binn_is_boolean(const struct binn *binn) {
   return binn && (binn->type == BINN_TYPE_TRUE || binn->type == BINN_TYPE_FALSE);
 }
 
+bool binn_is_container(const struct binn *binn) {
+  return binn && type_is_container(binn->type);
+}
+
 bool binn_is_object(const struct binn *binn) {
   return binn && binn->type == BINN_TYPE_OBJECT;
 }

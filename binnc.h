@@ -602,6 +602,15 @@ bool binn_is_blob(const struct binn *binn);
 /// @return `true` for `BINN_TYPE_TRUE` and `BINN_TYPE_FALSE`, `false` otherwise.
 bool binn_is_boolean(const struct binn *binn);
 
+/// @brief Returns `true` if `binn` holds a container value.
+///
+/// Applicable to `BINN_TYPE_LIST`, `BINN_TYPE_MAP`, `BINN_TYPE_OBJECT` and any other container
+/// storage type. Such values can be traversed with `binn_iter_*()` / `binn_visit()`.
+///
+/// @param binn Source binn value.
+/// @return `true` for any container value, `false` otherwise.
+bool binn_is_container(const struct binn *binn);
+
 /// @brief Returns `true` if `binn` holds an object container (`BINN_TYPE_OBJECT`).
 ///
 /// @param binn Source binn value.
