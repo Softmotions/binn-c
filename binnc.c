@@ -750,26 +750,32 @@ static const uint8_t* container_children(const struct binn *b, size_t *len, uint
 
 /// Copies a wrapped container payload to the heap, leaving the struct in construction mode.
 static bool binn_cow_container(struct binn *b) {
+  const uint8_t *src = 0;
   uint8_t *buf = 0;
   size_t children_len;
 
-  if (!(b->flags & BINN_FLAGS_WRAPPED)) {
+  if (!(b->flags & (BINN_FLAGS_WRAPPED | BINN_FLG_VIEW))) {
     return true;
   }
-  if (!(b->flags & BINN_FLG_WRAPPED_BINN)) {
+  if (b->flags & BINN_FLG_WRAPPED_PAYLOAD) {
     errno = EINVAL;
     return false;
   }
   children_len = b->used;
+  if (b->flags & BINN_FLG_WRAPPED_BINN) {
+    src = (const uint8_t*) b->wrapped.buf + (b->wrapped.size - children_len);
+  } else {
+    src = b->val.bval; // BINN_FLG_VIEW over construction mode data
+  }
   if (children_len) {
     buf = (uint8_t*) malloc(children_len);
     if (!buf) {
       errno = ENOMEM;
       return false;
     }
-    memcpy(buf, (const uint8_t*) b->wrapped.buf + (b->wrapped.size - children_len), children_len);
+    memcpy(buf, src, children_len);
   }
-  b->flags &= (binn_flags_t) ~BINN_FLAGS_WRAPPED;
+  b->flags &= (binn_flags_t) ~(BINN_FLAGS_WRAPPED | BINN_FLG_VIEW);
   b->val.bval = buf;
   b->allocated = (uint32_t) children_len;
   b->size = container_serialized_size(b);
@@ -1324,6 +1330,70 @@ struct binn* binn_copy_from(struct binn *holder, struct binn_val value) {
   return copy_from_serialized(holder, (const uint8_t*) value.buf, value.size);
 }
 
+bool binn_create_view_from(struct binn *holder, struct binn *binn) {
+  struct binn_val ref;
+  if (!holder || !binn || holder == binn) {
+    errno = EINVAL;
+    return false;
+  }
+  ref.buf = binn;
+  ref.size = sizeof(*binn);
+  if (!binn_is_struct_instance(ref)) {
+    errno = EINVAL;
+    return false;
+  }
+  *holder = *binn;
+  // The view borrows its data: never free the holder and keep the source's wrapped mode.
+  holder->flags = (binn_flags_t) ((binn->flags & ~BINN_FLG_STRUCT_ON_HEAP) | BINN_FLG_VIEW);
+  holder->allocated = 0;
+  holder->user_data = 0;
+  holder->on_destroy = 0;
+  return true;
+}
+
+bool binn_view_materialize(struct binn *binn) {
+  int storage;
+  if (!binn) {
+    errno = EINVAL;
+    return false;
+  }
+  if (!(binn->flags & BINN_FLG_VIEW)) {
+    return true; // not a view: nothing to do
+  }
+  storage = type_storage(binn->type);
+  if (storage == BINN_ST_CONTAINER) {
+    return binn_cow_container(binn);
+  }
+  if (storage == BINN_ST_STRING || storage == BINN_ST_BLOB) {
+    size_t len = binn->used;
+    size_t alloc = len + ((storage == BINN_ST_STRING) ? 1 : 0);
+    uint8_t *buf = 0;
+    if (alloc) {
+      buf = (uint8_t*) malloc(alloc);
+      if (!buf) {
+        errno = ENOMEM;
+        return false;
+      }
+      if (len) {
+        memcpy(buf, binn->val.bval, len);
+      }
+      if (storage == BINN_ST_STRING) {
+        buf[len] = 0; // keep string payloads null terminated
+      }
+    }
+    binn->flags &= (binn_flags_t) ~(BINN_FLAGS_WRAPPED | BINN_FLG_VIEW);
+    binn->val.bval = buf;
+    binn->allocated = (uint32_t) alloc;
+    binn->size = value_serialized_size(binn);
+    return true;
+  }
+  // Numeric and no-bytes values carry no external data; just drop the view flags.
+  binn->flags &= (binn_flags_t) ~(BINN_FLAGS_WRAPPED | BINN_FLG_VIEW);
+  binn->allocated = 0;
+  binn->size = value_serialized_size(binn);
+  return true;
+}
+
 bool binn_destroy(struct binn *binn) {
   bool on_heap;
 
@@ -1339,7 +1409,7 @@ bool binn_destroy(struct binn *binn) {
     binn->on_destroy = 0;
     cb(binn);
   }
-  if (!(binn->flags & BINN_FLAGS_WRAPPED)) {
+  if (!(binn->flags & (BINN_FLAGS_WRAPPED | BINN_FLG_VIEW))) {
     int storage = type_storage(binn->type);
     if (  (storage == BINN_ST_STRING || storage == BINN_ST_BLOB || storage == BINN_ST_CONTAINER)
        && binn->val.bval) {
@@ -1382,7 +1452,7 @@ bool binn_is_struct_instance(struct binn_val value) {
   // Reject flag combinations that cannot describe a live binn structure. This keeps a crafted
   // serialized buffer that merely starts with the magic number from being mistaken for a struct.
   memcpy(&flags, (const uint8_t*) value.buf + offsetof(struct binn, flags), sizeof(flags));
-  if ((flags & (binn_flags_t) ~(BINN_FLAGS_WRAPPED | BINN_FLG_STRUCT_ON_HEAP)) != 0) {
+  if ((flags & (binn_flags_t) ~(BINN_FLAGS_WRAPPED | BINN_FLG_STRUCT_ON_HEAP | BINN_FLG_VIEW)) != 0) {
     return false;
   }
   return true;
@@ -1924,6 +1994,10 @@ bool binn_is_boolean(const struct binn *binn) {
 
 bool binn_is_container(const struct binn *binn) {
   return binn && type_is_container(binn->type);
+}
+
+bool binn_is_view(const struct binn *binn) {
+  return binn && (binn->flags & BINN_FLG_VIEW) != 0;
 }
 
 bool binn_is_object(const struct binn *binn) {

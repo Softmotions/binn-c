@@ -76,6 +76,13 @@ typedef uint16_t binn_flags_t;
 /// The binn struct is allocated on the heap.
 #define BINN_FLG_STRUCT_ON_HEAP 0x02
 
+/// The binn object is in `view mode`: it references data (in `binn::val` or `binn::wrapped`) that it
+/// does not own, and that data is not freed by `binn_destroy()`. On the first modification the
+/// referenced data is copied to the heap, the binn starts owning it and this flag is unset.
+///
+/// A view created by `binn_create_view_from()` keeps the `BINN_FLG_WRAPPED_*` flags of its source.
+#define BINN_FLG_VIEW 0x08
+
 /// Bitmask of all wrapped modes.
 #define BINN_FLAGS_WRAPPED (BINN_FLG_WRAPPED_BINN | BINN_FLG_WRAPPED_PAYLOAD)
 
@@ -97,12 +104,13 @@ struct binn_val {
 
 /// @brief Binn value.
 ///
-/// A binn value struct operates in two modes:
+/// A binn value struct operates in three modes:
 ///
 /// 1. Construction mode. In this mode the binn is iteratively constructed from scratch by the
 ///    `binn_add_xxx()` functions. It does not hold a reference to a wrapped serialized binn buffer or to
 ///    wrapped payload data; instead it holds the data in `binn::val`.
-///    The binn is in construction mode if neither `BINN_FLG_WRAPPED_BINN` nor `BINN_FLG_WRAPPED_PAYLOAD` is set.
+///    The binn is in construction mode if none of `BINN_FLG_WRAPPED_BINN`, `BINN_FLG_WRAPPED_PAYLOAD`
+///    or `BINN_FLG_VIEW` is set.
 ///
 /// 2. Wrapper mode (when `BINN_FLG_WRAPPED_BINN` or `BINN_FLG_WRAPPED_PAYLOAD` is set).
 ///    In this mode `binn::wrapped` holds a `struct binn_val` referencing a serialized binn buffer
@@ -111,7 +119,12 @@ struct binn_val {
 ///    moved to construction mode (copy-on-write), leaving the wrapped buffer untouched, and the data is
 ///    copied to the heap.
 ///
-/// @see BINN_FLG_WRAPPED_BINN, BINN_FLG_WRAPPED_PAYLOAD
+/// 3. View mode (when `BINN_FLG_VIEW` is set). The binn references data owned by another binn and does
+///    not free it. It may also carry a `BINN_FLG_WRAPPED_*` flag inherited from its source. On the first
+///    modification the referenced data is copied to the heap, `BINN_FLG_VIEW` is unset and the binn
+///    starts owning its data. See `binn_create_view_from()`.
+///
+/// @see BINN_FLG_WRAPPED_BINN, BINN_FLG_WRAPPED_PAYLOAD, BINN_FLG_VIEW
 struct binn {
   uint32_t magic;     ///< Magic number (`BINN_MAJIC_NUMBER`) used to distinguish a binn structure from a
                       ///  serialized binn buffer.
@@ -310,6 +323,40 @@ struct binn* binn_from_unchecked(struct binn *holder, struct binn_val value, boo
 /// @param value Serialized binn value or a `struct binn` wrapper to copy (see `binnv()`).
 /// @return Pointer to the copied binn value, or zero on error.
 struct binn* binn_copy_from(struct binn *holder, struct binn_val value);
+
+/// @brief Creates a view of another binn value in `holder`, see `BINN_FLG_VIEW`.
+///
+/// The view mirrors `binn` (type, count, size and its `BINN_FLG_WRAPPED_*` mode) but references the same
+/// data without owning it, so `binn_destroy()` will not free that data. The first modification of the
+/// view (for example `binn_add()`) copies the referenced data to the heap, clears `BINN_FLG_VIEW` and
+/// makes the view own its data. The source `binn` is left untouched.
+///
+/// The source `binn` must stay alive and unmodified while the view is read, because the view borrows its
+/// data (serialized buffer, payload or construction buffer).
+///
+/// @note `holder` is reinitialized; any value previously stored in it is not released.
+/// @note `holder` must not be `binn` itself.
+///
+/// @param holder Required storage for the view. Must not be `binn` itself.
+/// @param binn Source binn value to take a view of.
+/// @return `true` on success, or `false` with `errno` set (for example `EINVAL`) on error.
+///
+/// @see BINN_FLG_VIEW, binn_destroy()
+bool binn_create_view_from(struct binn *holder, struct binn *binn);
+
+/// @brief Materializes a view by copying its referenced data into a buffer owned by the binn.
+///
+/// If `binn` is in view mode (`BINN_FLG_VIEW`), the data it borrows is copied to the heap,
+/// `BINN_FLG_VIEW` and any `BINN_FLG_WRAPPED_*` flags are unset, and the binn starts owning its data.
+/// This is the explicit form of the copy-on-write that mutation performs. If `binn` is not in view
+/// mode the call is a no-op.
+///
+/// @param binn Binn value to materialize.
+/// @return `true` on success (including the no-op case), or `false` with `errno` set (for example
+///     `EINVAL` or `ENOMEM`).
+///
+/// @see BINN_FLG_VIEW, binn_create_view_from()
+bool binn_view_materialize(struct binn *binn);
 
 /// @brief Short form for creating a binn list (`BINN_TYPE_LIST`) value.
 ///
@@ -623,6 +670,17 @@ bool binn_is_boolean(const struct binn *binn);
 /// @param binn Source binn value.
 /// @return `true` for any container value, `false` otherwise.
 bool binn_is_container(const struct binn *binn);
+
+/// @brief Returns `true` if `binn` is in view mode (`BINN_FLG_VIEW`).
+///
+/// A view references data owned by another binn and does not free it. The first modification (or
+/// `binn_view_materialize()`) copies that data to the heap and clears the flag.
+///
+/// @param binn Source binn value.
+/// @return `true` if `BINN_FLG_VIEW` is set, `false` otherwise (including a zero `binn`).
+///
+/// @see BINN_FLG_VIEW, binn_create_view_from(), binn_view_materialize()
+bool binn_is_view(const struct binn *binn);
 
 /// @brief Returns `true` if `binn` holds an object container (`BINN_TYPE_OBJECT`).
 ///
