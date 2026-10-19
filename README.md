@@ -19,6 +19,32 @@ The build system is [Autark](https://autark.dev):
 
 `ENABLE_ASAN=1` / `ENABLE_UBSAN=1` enable sanitizers, `ENABLE_DEBINFO=1` keeps debug info in release builds.
 
+## Tests
+
+The test cases use the dependency free [`iwtests.h`](TESTS.md) harness: one executable per suite,
+and each suite is a list of cases selectable from the command line.
+
+```sh
+./build.sh -DBINNC_RUN_TESTS=1              # build and run every suite
+
+autark-cache/t/test003                      # run the whole suite
+autark-cache/t/test003 iter                 # only the cases matching "iter"
+autark-cache/t/test003 --list               # show the selectable cases
+autark-cache/t/test003 --filter iter,visit -v
+IW_TEST_FILTER=view,nesting ./build.sh -DBINNC_RUN_TESTS=1
+```
+
+Suites live in `t/`, the benchmark suite in `perf/`, the fuzzing suites in `fuzz/` (see
+[`fuzz/README.md`](fuzz/README.md)). The `stdout`/`stderr` of the test code is redirected into
+`<suite>.log` next to the binary; `--no-log` keeps it on the console, which is what the benchmark
+wants:
+
+```sh
+autark-cache/perf/perf001 --no-log                   # every benchmark phase
+autark-cache/perf/perf001 --no-log serialize,visit   # the selected phases only
+BINNC_PERF_TARGET_MS=500 autark-cache/perf/perf001 --no-log
+```
+
 ## Usage
 
 ```c
@@ -44,6 +70,7 @@ binn_destroy(obj);
 - `binnc.h` / `binnc.c` API and implementation
 - `docs/spec.md` format specification
 - `t/` unit tests, `perf/` benchmark, `fuzz/` fuzz harness (see `fuzz/README.md`)
+- `iwtests.h` test harness, documented in `TESTS.md`
 
 # License
 

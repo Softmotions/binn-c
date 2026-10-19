@@ -4,7 +4,9 @@
 //   * libFuzzer target - compile without BINNC_FUZZ_STANDALONE and link with `-fsanitize=fuzzer`.
 //     The library should be instrumented with `-fsanitize=fuzzer-no-link` (ENABLE_FUZZ=1).
 //   * Standalone randomized driver - compile with `-DBINNC_FUZZ_STANDALONE`. It runs mutated
-//     corpus entries and pure random inputs for a configurable number of rounds.
+//     corpus entries and pure random inputs for a configurable number of rounds. The driver is an
+//     `iwtests.h` suite, so individual campaigns can be selected by case name and the rounds/seed
+//     are taken from the `BINNC_FUZZ_ROUNDS`/`BINNC_FUZZ_SEED` environment variables.
 //
 // The checks are:
 //   * every read path is exercised (checked/unchecked wrapping, iteration, traversal, lookups, copy);
@@ -12,7 +14,9 @@
 //   * values produced by the library must round trip: serialize -> parse -> serialize and
 //     copy -> serialize must be byte identical;
 //   * the streaming serializer must produce the same bytes as `binn_serialize_allocated()`.
+#define IW_TEST_HARNESS "binnc"
 #include "../binnc.h"
+#include "../iwtests.h"
 
 #include <stdint.h>
 #include <stdlib.h>
@@ -29,9 +33,12 @@
 
 #define FUZZ_MAX_INPUT 4096
 
+/// Reports an oracle violation and terminates the current test case.
+/// Outside of a running `iwtests.h` case (the libFuzzer target) this aborts the process, which is
+/// what the fuzzer expects from a crash.
 static _Noreturn void fuzz_bug(const char *what) {
-  (void) what;
-  abort();
+  IW_TEST_FAILF("fuzz oracle: %s", what);
+  iw_test_abort_case();
 }
 
 /// Storage class of a type identifier (mirrors the format definition, without touching internals).
@@ -519,28 +526,50 @@ static void build_corpus(void) {
   }
 }
 
-int main(int argc, char *argv[]) {
-  unsigned long rounds = 100000;
-  uint64_t seed = 0x9E3779B97F4A7C15ull;
+static unsigned long g_rounds = 100000;
+static uint64_t g_seed = 0x9E3779B97F4A7C15ull;
+
+/// Reads the campaign parameters from the environment and builds the seed corpus.
+static int suite_init(void) {
+  const char *v = getenv("BINNC_FUZZ_ROUNDS");
+  if (v && *v) {
+    g_rounds = strtoul(v, 0, 0);
+  }
+  v = getenv("BINNC_FUZZ_SEED");
+  if (v && *v) {
+    g_seed = strtoull(v, 0, 0);
+  }
+  g_rng = g_seed ? g_seed : 1;
+  build_corpus();
+  IW_TEST_ASSERT_TRUE(g_corpus_n > 0);
+  return g_corpus_n > 0 ? 0 : -1;
+}
+
+static void suite_cleanup(void) {
+  int i;
+  for (i = 0; i < g_corpus_n; i++) {
+    free(g_corpus[i]);
+    g_corpus[i] = 0;
+    g_corpus_len[i] = 0;
+  }
+  g_corpus_n = 0;
+}
+
+/// Feeds every corpus entry unmutated through both oracles.
+static void test_corpus(void) {
+  int i;
+  for (i = 0; i < g_corpus_n; i++) {
+    fuzz_run(g_corpus[i], g_corpus_len[i]);
+    fuzz_build_roundtrip(g_corpus[i], g_corpus_len[i]);
+  }
+}
+
+/// Runs `BINNC_FUZZ_ROUNDS` random and corpus mutated inputs.
+static void test_random_rounds(void) {
   uint8_t buf[FUZZ_MAX_INPUT];
   unsigned long r;
 
-  if (argc > 1) {
-    rounds = strtoul(argv[1], 0, 0);
-  }
-  if (argc > 2) {
-    seed = strtoull(argv[2], 0, 0);
-  }
-  g_rng = seed ? seed : 1;
-  build_corpus();
-
-  // Feed every corpus entry unmutated first.
-  for (r = 0; r < (unsigned long) g_corpus_n; r++) {
-    fuzz_run(g_corpus[r], g_corpus_len[r]);
-    fuzz_build_roundtrip(g_corpus[r], g_corpus_len[r]);
-  }
-
-  for (r = 0; r < rounds; r++) {
+  for (r = 0; r < g_rounds; r++) {
     size_t len;
     int mode = (int) (fuzz_rand() % 4);
     if (mode == 0 || g_corpus_n == 0) {
@@ -582,11 +611,16 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  fprintf(stderr, "fuzz001: %lu rounds ok (seed=%" PRIu64 ", corpus=%d)\n", rounds, seed, g_corpus_n);
-  for (r = 0; r < (unsigned long) g_corpus_n; r++) {
-    free(g_corpus[r]);
-  }
-  return 0;
+  fprintf(stderr, "fuzz001: %lu rounds ok (seed=%" PRIu64 ", corpus=%d)\n",
+          g_rounds, g_seed, g_corpus_n);
+}
+
+int main(int argc, char *argv[]) {
+  static const struct iw_test_case cases[] = {
+    IW_TEST_CASE_AS("corpus", test_corpus),
+    IW_TEST_CASE_AS("random_rounds", test_random_rounds),
+  };
+  return iw_test_run(argc, argv, IW_TEST_SUITE("fuzz", cases, suite_init, suite_cleanup));
 }
 
 #endif // BINNC_FUZZ_STANDALONE

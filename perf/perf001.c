@@ -1,15 +1,23 @@
 // Performance benchmark for the binnc library.
 //
-// Usage:
-//   perf001 [phase] [target_ms]
+// Every benchmark phase is a test case of the `perf` suite, so a subset of the phases can be run
+// with the usual `iwtests.h` case selection:
 //
-//   phase      optional, one of: build_object build_list serialize wrap_iterate
-//              keyed_get copy_from (default: all phases)
-//   target_ms  optional per-phase calibration target in milliseconds (default 300)
+//   perf001                        - run every phase
+//   perf001 serialize,keyed_get    - run the matching phases only
+//   perf001 --list                 - show the available phases
+//   perf001 --no-log               - keep the timing table on the console
 //
-// Each phase is calibrated so that it runs for roughly `target_ms`, then measured three
-// times and the fastest run reported.
+// Environment:
+//   BINNC_PERF_TARGET_MS  per-phase calibration target in milliseconds (default 300)
+//
+// Each phase is calibrated so that it runs for roughly `BINNC_PERF_TARGET_MS`, then measured three
+// times and the fastest run reported. The report goes into the test output log named in the report
+// header, use `--no-log` to see the timings directly.
+#define IW_TEST_HARNESS "binnc"
+
 #include "../binnc.h"
+#include "../iwtests.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -169,31 +177,18 @@ static void ph_visit(long n) {
   }
 }
 
-struct phase {
-  const char *name;
-  void (*fn)(long);
-  long unit; // number of logical operations per iteration
-};
-
-static const struct phase g_phases[] = {
-  { "build_object", ph_build_object, 1 },
-  { "build_list", ph_build_list, 1 },
-  { "serialize", ph_serialize, 1 },
-  { "wrap_iterate", ph_wrap_iterate, 1 },
-  { "keyed_get", ph_keyed_get, OBJ_KEYS },
-  { "copy_from", ph_copy_from, 1 },
-  { "copy_struct", ph_copy_struct, 1 },
-  { "visit", ph_visit, 1 },
-};
-
-static void run_phase(const struct phase *ph) {
+/// Calibrates and measures a single benchmark phase.
+/// @param name Phase name shown in the report row.
+/// @param fn Benchmarked function, it is called `n` times.
+/// @param unit Number of logical operations performed by one call of `fn`.
+static void run_phase(const char *name, void (*fn)(long), long unit) {
   long n = 1;
   double dt = 0;
   double best;
   int r;
   for ( ; ; ) {
     double t0 = now_sec();
-    ph->fn(n);
+    fn(n);
     dt = now_sec() - t0;
     if (dt >= g_target || n >= (1L << 26)) {
       break;
@@ -203,48 +198,96 @@ static void run_phase(const struct phase *ph) {
   best = dt;
   for (r = 0; r < 2; r++) {
     double t0 = now_sec();
-    ph->fn(n);
+    fn(n);
     dt = now_sec() - t0;
     if (dt < best) {
       best = dt;
     }
   }
   printf("%-14s %10ld iters %9.3f ms %10.1f ns/op\n",
-         ph->name, n, best * 1e3, best * 1e9 / ((double) n * (double) ph->unit));
+         name, n, best * 1e3, best * 1e9 / ((double) n * (double) unit));
   fflush(stdout);
+  IW_TEST_ASSERT_TRUE(n > 0);
 }
 
-int main(int argc, char *argv[]) {
-  const char *only = 0;
-  size_t i;
-  int a;
+static void test_build_object(void) {
+  run_phase("build_object", ph_build_object, 1);
+}
 
-  for (a = 1; a < argc; a++) {
-    char *end = 0;
-    double v = strtod(argv[a], &end);
-    if (end && *end == 0 && v > 0) {
-      g_target = v / 1000.0;
-    } else {
-      only = argv[a];
+static void test_build_list(void) {
+  run_phase("build_list", ph_build_list, 1);
+}
+
+static void test_serialize(void) {
+  run_phase("serialize", ph_serialize, 1);
+}
+
+static void test_wrap_iterate(void) {
+  run_phase("wrap_iterate", ph_wrap_iterate, 1);
+}
+
+static void test_keyed_get(void) {
+  run_phase("keyed_get", ph_keyed_get, OBJ_KEYS);
+}
+
+static void test_copy_from(void) {
+  run_phase("copy_from", ph_copy_from, 1);
+}
+
+static void test_copy_struct(void) {
+  run_phase("copy_struct", ph_copy_struct, 1);
+}
+
+static void test_visit(void) {
+  run_phase("visit", ph_visit, 1);
+}
+
+static int suite_init(void) {
+  const char *target = getenv("BINNC_PERF_TARGET_MS");
+  size_t i;
+  if (target && *target) {
+    double ms = strtod(target, 0);
+    if (ms > 0) {
+      g_target = ms / 1000.0;
     }
   }
-
   for (i = 0; i < OBJ_KEYS; i++) {
     snprintf(g_keys[i], sizeof(g_keys[i]), "key-%d", (int) i);
   }
   g_obj = make_obj();
+  IW_TEST_ASSERT_PTR_NOT_NULL(g_obj);
+  if (!g_obj) {
+    return -1;
+  }
   g_ser = binn_serialize_allocated(g_obj);
-
+  IW_TEST_ASSERT_PTR_NOT_NULL(g_ser.buf);
+  if (!g_ser.buf) {
+    binn_destroy(g_obj);
+    g_obj = 0;
+    return -1;
+  }
   printf("binnc perf: object=%d keys, list=%d items, target=%.0f ms\n",
          OBJ_KEYS, LIST_ITEMS, g_target * 1e3);
+  return 0;
+}
 
-  for (i = 0; i < sizeof(g_phases) / sizeof(g_phases[0]); i++) {
-    if (!only || strcmp(only, g_phases[i].name) == 0) {
-      run_phase(&g_phases[i]);
-    }
-  }
-
+static void suite_cleanup(void) {
   free(g_ser.buf);
   binn_destroy(g_obj);
-  return 0;
+  g_ser.buf = 0;
+  g_obj = 0;
+}
+
+int main(int argc, char *argv[]) {
+  static const struct iw_test_case cases[] = {
+    IW_TEST_CASE_AS("build_object", test_build_object),
+    IW_TEST_CASE_AS("build_list", test_build_list),
+    IW_TEST_CASE_AS("serialize", test_serialize),
+    IW_TEST_CASE_AS("wrap_iterate", test_wrap_iterate),
+    IW_TEST_CASE_AS("keyed_get", test_keyed_get),
+    IW_TEST_CASE_AS("copy_from", test_copy_from),
+    IW_TEST_CASE_AS("copy_struct", test_copy_struct),
+    IW_TEST_CASE_AS("visit", test_visit),
+  };
+  return iw_test_run(argc, argv, IW_TEST_SUITE("perf", cases, suite_init, suite_cleanup));
 }

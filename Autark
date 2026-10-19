@@ -67,10 +67,15 @@ set {
 set {
   FUZZ_COV_FLAGS
   if { ${ENABLE_FUZZ}
-    set { BINNC_BUILD_FUZZ 1 }
     if { contains { ${CC} clang }
       -fsanitize=fuzzer-no-link
     }
+  }
+}
+
+if { ${ENABLE_FUZZ}
+  set {
+    BINNC_BUILD_FUZZ 1
   }
 }
 
@@ -159,6 +164,10 @@ set {
 set {
   CFLAGS_TESTS
   -DIW_STATIC
+  # `iwtests.h` keeps a jmp_buf based abort point in iw_test_run().
+  if { !contains { ${CC} clang }
+    -Wno-clobbered
+  }
   ..${CFLAGS}
 }
 
@@ -303,9 +312,11 @@ install-sources {
   Changelog
   LICENSE
   README.md
+  TESTS.md
   build.sh
   uncrustify.cfg
   
+  iwtests.h
   binnc.h
   binnc.c
   binnc_cfg.h.in
