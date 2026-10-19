@@ -67,6 +67,7 @@ set {
 set {
   FUZZ_COV_FLAGS
   if { ${ENABLE_FUZZ}
+    set { BINNC_BUILD_FUZZ 1 }
     if { contains { ${CC} clang }
       -fsanitize=fuzzer-no-link
     }
