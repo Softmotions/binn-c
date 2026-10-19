@@ -39,11 +39,6 @@ free(buf.buf);
 binn_destroy(obj);
 ```
 
-Serialized buffers and `struct binn` values are passed as a bounded `struct binn_val` (pointer + size);
-`binnv(ptr)` builds one for a typed pointer. `binn_from()` wraps a serialized buffer with validation
-(zero-copy), `binn_from_unchecked()` skips the deep validation for trusted buffers. Read values with
-`binn_iter_*()`, `binn_visit()`, `binn_keyed_get()` and `binn_indexed_get()`.
-
 ## Layout
 
 - `binnc.h` / `binnc.c` API and implementation
