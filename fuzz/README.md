@@ -6,7 +6,8 @@ Two fuzzing front-ends share the same checks in `fuzz001.c`:
   It is an [`iwtests.h`](../TESTS.md) suite, so single campaigns can be selected by case name.
 * **`fuzzlib`** - coverage guided [libFuzzer](https://llvm.org/docs/LibFuzzer.html) target (clang only).
 
-Fuzzing is disabled by default and enabled with `BINNC_BUILD_FUZZ=1`.
+Fuzzing is disabled by default and enabled with `BINNC_BUILD_FUZZ=1` (`BINNC_RUN_FUZZ=1` builds it
+and runs the portable driver as part of the build).
 
 ## What is checked
 
@@ -39,6 +40,8 @@ is exactly what libFuzzer expects from a crash.
 ```
 
 `ENABLE_FUZZ` adds `-fsanitize=fuzzer-no-link` to the library so libFuzzer sees coverage inside it.
+Use `BINNC_RUN_FUZZ=1` instead of `BINNC_BUILD_FUZZ=1` to also execute the portable driver as part of
+the build (the libFuzzer target is built but never started by the build).
 The targets are produced in `autark-cache/fuzz/`:
 
 ```sh
@@ -51,10 +54,10 @@ autark-cache/fuzz/fuzzlib -max_total_time=300 -dict=fuzz/binn.dict corpus_dir
 The portable driver runs two cases: `corpus` (every seed corpus entry, unmutated) and
 `random_rounds` (mutation/random loop). The campaign parameters come from the environment:
 
-| Variable             | Meaning                                            |
-| -------------------- | -------------------------------------------------- |
-| `BINNC_FUZZ_ROUNDS`  | Number of random rounds, default `100000`.         |
-| `BINNC_FUZZ_SEED`    | PRNG seed, default `0x9E3779B97F4A7C15`.           |
+| Variable            | Meaning                                    |
+| ------------------- | ------------------------------------------ |
+| `BINNC_FUZZ_ROUNDS` | Number of random rounds, default `100000`. |
+| `BINNC_FUZZ_SEED`   | PRNG seed, default `0x9E3779B97F4A7C15`.   |
 
 ```sh
 # Portable driver, e.g. 20M rounds with a fixed seed (~60k rounds/s in a Debug+ASAN build).

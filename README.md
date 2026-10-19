@@ -12,12 +12,37 @@ The build system is [Autark](https://autark.dev):
 ```sh
 ./build.sh                                # static library, release build.
 ./build.sh -DBUILD_TYPE=Debug             # debug build
-./build.sh -DBINNC_RUN_TESTS=1            # build and run the test suite
 ./build.sh -DBINNC_BUILD_SHARED_LIBS=1    # also build the shared library
 ./build.sh -I                             # install
 ```
 
-`ENABLE_ASAN=1` / `ENABLE_UBSAN=1` enable sanitizers, `ENABLE_DEBINFO=1` keeps debug info in release builds.
+Tests, the benchmark and the fuzz harness are opt-in. Every `*_RUN_*` option enables the matching
+`*_BUILD_*` option and executes the produced binaries as part of the build:
+
+| Option              | Meaning                                                             |
+| ------------------- | ------------------------------------------------------------------- |
+| `BINNC_BUILD_TESTS` | Build the test suites.                                              |
+| `BINNC_RUN_TESTS`   | Build and run the test suites.                                      |
+| `BINNC_BUILD_PERF`  | Build the benchmark suite.                                          |
+| `BINNC_RUN_PERF`    | Build and run the benchmark suite.                                  |
+| `BINNC_BUILD_FUZZ`  | Build the fuzz harness (`fuzzdriver`, and `fuzzlib` when CC=clang). |
+| `BINNC_RUN_FUZZ`    | Build and run the fuzz harness (`fuzzdriver` only).                 |
+
+`ENABLE_ASAN=1` / `ENABLE_UBSAN=1` enable sanitizers, `ENABLE_DEBINFO=1` keeps debug info in release
+builds, `ENABLE_FUZZ=1` instruments the library for libFuzzer coverage (implies
+`BINNC_BUILD_FUZZ`).
+
+```sh
+./build.sh -DBINNC_RUN_TESTS=1                          # run the test suites
+./build.sh -DBINNC_RUN_TESTS=1 -DENABLE_ASAN=1          # the same under ASAN
+./build.sh -DBINNC_RUN_PERF=1                           # run the benchmark
+./build.sh -DBINNC_RUN_FUZZ=1 -DENABLE_FUZZ=1           # fuzz driver, instrumented library
+./build.sh -DBINNC_RUN_TESTS=1 -DBINNC_RUN_PERF=1 -DBINNC_RUN_FUZZ=1   # everything
+```
+
+`BINNC_RUN_FUZZ` executes only the portable `fuzzdriver` (100k rounds by default, see
+`BINNC_FUZZ_ROUNDS`), the `libFuzzer` target `fuzzlib` is built but never started by the build since
+it runs until it is stopped by hand.
 
 ## Tests
 
@@ -36,13 +61,15 @@ IW_TEST_FILTER=view,nesting ./build.sh -DBINNC_RUN_TESTS=1
 
 Suites live in `t/`, the benchmark suite in `perf/`, the fuzzing suites in `fuzz/` (see
 [`fuzz/README.md`](fuzz/README.md)). The `stdout`/`stderr` of the test code is redirected into
-`<suite>.log` next to the binary; `--no-log` keeps it on the console, which is what the benchmark
-wants:
+`<suite>.log` in the current directory (`autark-cache/<dir>/` for the binary started by the build);
+`--no-log` keeps it on the console, which is what the benchmark wants:
 
 ```sh
 autark-cache/perf/perf001 --no-log                   # every benchmark phase
 autark-cache/perf/perf001 --no-log serialize,visit   # the selected phases only
 BINNC_PERF_TARGET_MS=500 autark-cache/perf/perf001 --no-log
+autark-cache/fuzz/fuzzdriver corpus                  # fuzz case selection
+BINNC_FUZZ_ROUNDS=1000000 BINNC_FUZZ_SEED=1 autark-cache/fuzz/fuzzdriver --no-log
 ```
 
 ## Usage

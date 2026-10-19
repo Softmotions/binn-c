@@ -14,3 +14,15 @@ foreach {
     produces { %{${OBJ}} }
   }
 }
+
+if { ${BINNC_RUN_PERF}
+  foreach {
+    OBJ
+    ${CC_OBJS}
+    run {
+      always
+      shell { %{${OBJ}} }
+      consumes { %{${OBJ}} }
+    }
+  }
+}

@@ -20,14 +20,16 @@ meta {
 }
 
 option { BINNC_BUILD_SHARED_LIBS  Build shared libraries }
-option { BINNC_BUILD_TESTS        Build test cases }
-option { BINNC_RUN_TESTS          Build and run test cases }
-option { BINNC_BUILD_PERF         Build performance benchmark }
-option { BINNC_BUILD_FUZZ         Build fuzzy testing harness }
-option { ENABLE_FUZZ              Instrument the library for libFuzzer coverage }
-option { ENABLE_ASAN              Turn on address sanitizer }
-option { ENABLE_UBSAN             Turn on UB sanitizer }
 option { ENABLE_DEBINFO           Generate debuginfo even in release mode }
+option { BINNC_RUN_FUZZ           Build and run fuzzy testing harness }
+option { BINNC_RUN_PERF           Build and run performance benchmark }
+option { BINNC_RUN_TESTS          Build and run test cases }
+option { BINNC_BUILD_FUZZ         Build fuzzy testing harness }
+option { BINNC_BUILD_PERF         Build performance benchmark }
+option { BINNC_BUILD_TESTS        Build test cases }
+option { ENABLE_ASAN              Turn on address sanitizer }
+option { ENABLE_FUZZ              Instrument the library for libFuzzer coverage }
+option { ENABLE_UBSAN             Turn on UB sanitizer }
 
 set {
   META_REVISION
@@ -37,6 +39,18 @@ set {
 if { ${BINNC_RUN_TESTS} 
   set {
     BINNC_BUILD_TESTS 1
+  }
+}
+
+if { ${BINNC_RUN_PERF}
+  set {
+    BINNC_BUILD_PERF 1
+  }
+}
+
+if { ${BINNC_RUN_FUZZ}
+  set {
+    BINNC_BUILD_FUZZ 1
   }
 }
 
@@ -147,6 +161,8 @@ set {
 set {
   LDFLAGS
   ..${SANITIZER_FLAGS}
+  # Objects instrumented with -fsanitize=fuzzer-no-link need the coverage runtime at link time.
+  ..${FUZZ_COV_FLAGS}
   ..${LDFLAGS}
 }
 

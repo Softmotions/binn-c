@@ -23,3 +23,12 @@ if { contains { ${CC} clang }
     produces { fuzzlib }
   }
 }
+
+# Only the portable driver is executed, the libFuzzer target runs until it is stopped by hand.
+if { ${BINNC_RUN_FUZZ}
+  run {
+    always
+    shell { fuzzdriver }
+    consumes { fuzzdriver }
+  }
+}
