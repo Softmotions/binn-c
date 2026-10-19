@@ -1,4 +1,4 @@
-2026-10-15 Anton Adamansky  <adamansky@gmail.com>  [v0.2.0-dev]
+2026-10-15 Anton Adamansky  <adamansky@gmail.com>  [v0.2.0]
   * binnc: Added a set of data access functions.
   * binnc: Added binn_create_bool(), binn_create_null(), binn_create_blob()
   * binnc: Added a set of binn creation functions with automatic number compression:
