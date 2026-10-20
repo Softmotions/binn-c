@@ -44,34 +44,6 @@ builds, `ENABLE_FUZZ=1` instruments the library for libFuzzer coverage (implies
 `BINNC_FUZZ_ROUNDS`), the `libFuzzer` target `fuzzlib` is built but never started by the build since
 it runs until it is stopped by hand.
 
-## Tests
-
-The test cases use the dependency free [`iwtests.h`](TESTS.md) harness: one executable per suite,
-and each suite is a list of cases selectable from the command line.
-
-```sh
-./build.sh -DBINNC_RUN_TESTS=1              # build and run every suite
-
-autark-cache/t/test003                      # run the whole suite
-autark-cache/t/test003 iter                 # only the cases matching "iter"
-autark-cache/t/test003 --list               # show the selectable cases
-autark-cache/t/test003 --filter iter,visit -v
-IW_TEST_FILTER=view,nesting ./build.sh -DBINNC_RUN_TESTS=1
-```
-
-Suites live in `t/`, the benchmark suite in `perf/`, the fuzzing suites in `fuzz/` (see
-[`fuzz/README.md`](fuzz/README.md)). The `stdout`/`stderr` of the test code is redirected into
-`<suite>.log` in the current directory (`autark-cache/<dir>/` for the binary started by the build);
-`--no-log` keeps it on the console, which is what the benchmark wants:
-
-```sh
-autark-cache/perf/perf001 --no-log                   # every benchmark phase
-autark-cache/perf/perf001 --no-log serialize,visit   # the selected phases only
-BINNC_PERF_TARGET_MS=500 autark-cache/perf/perf001 --no-log
-autark-cache/fuzz/fuzzdriver corpus                  # fuzz case selection
-BINNC_FUZZ_ROUNDS=1000000 BINNC_FUZZ_SEED=1 autark-cache/fuzz/fuzzdriver --no-log
-```
-
 ## Usage
 
 ```c
